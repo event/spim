@@ -5,22 +5,26 @@ import IO
 import qualified System.Console.GetOpt as GetOpt
 import qualified System.Environment as SysEnv
 import qualified System.Directory as SysDir
+import qualified System.IO as SIO
+import qualified Text.Printf as Printf
 
 main :: IO()
 main = do 
   args <- SysEnv.getArgs
-  fname <- head args
-  contents <- getFileContents fname  `catch` (\err -> return ("Failed to open `" ++ fname ++ "' because of " ++ show err))
-  showLines contents 1
+  lines <- getFileContents (head args)  
+  showLines lines 1
 
 getFileContents :: String -> IO [String]
-getFileContents(fName) = do
+getFileContents fName = do
   contents <- readFile fName
   return (lines contents)
       
       
 showLines :: [String] -> Int -> IO()
-showLines(contents, idx) = do
-  printf "%03d. %s" (head contents) idx
-  showLines(tail contents, idx + 1)
+
+showLines [] _ = Printf.printf "End.\n"
+
+showLines contents idx = do
+  Printf.printf "%03d. %s\n"  idx (head contents)
+  showLines (tail contents) (idx + 1)
   
