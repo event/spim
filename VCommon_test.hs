@@ -4,7 +4,7 @@ import Test.HUnit
 import qualified Data.Map as Map
 import VCommon
 
-tests = test 
+clTests = test 
         -- positive tests
         ["happy path" ~: read "name;param=pval1,pval2:value" 
                           @?= ContentLine "name" 
@@ -28,6 +28,40 @@ tests = test
                                   (\e -> do return "")
                            assertEqual "read of wrong string had to rise" "" res]
 
+vcTests = test [
+           "takeBeforeCRLF" ~: takeBeforeCRLF "text\r\nothertext" @?= "text"
+          , "readCL" ~: readContentLine "begin:vcard" 
+                         @?= ContentLine "begin" Map.empty "vcard"
+          , "reads" ~: reads "begin:vcard\r\ntherest" 
+                        @?= [(ContentLine "begin" Map.empty "vcard", "therest")]
+          , "readCLs1" ~: readContentLines "begin:vcard\r\n"
+                           @?= [ContentLine "begin" Map.empty "vcard"] 
+          , "readCLs2" ~: readContentLines "begin:vcard\r\nend:vcard\r\n"
+                           @?= [ContentLine "begin" Map.empty "vcard"
+                               , ContentLine "end" Map.empty "vcard"] 
+          , "insertCl2VCommon" ~: insertCl2VCommon Map.empty 
+                                  (ContentLine "begin" Map.empty "vcard")
+                                  @?= Map.fromList 
+                                          [("begin", [(Map.empty, "vcard")])]
+          , "insertCl2VCommon2" ~: insertCl2VCommon (insertCl2VCommon Map.empty 
+                                                     (ContentLine "begin" Map.empty "vcard"))  
+                                    (ContentLine "end" Map.empty "vcard")
+                                    @?= Map.fromList [("begin", [(Map.empty, "vcard")])
+                                                     , ("end", [(Map.empty, "vcard")])] 
+          , "cls2vc" ~: contentLines2VCommon [ContentLine "begin" Map.empty "vcard"
+                                             , ContentLine "end" Map.empty "vcard"]
+                             @?= Map.fromList [("begin", [(Map.empty, "vcard")])
+                                              , ("end", [(Map.empty, "vcard")])] 
+          , "happy path" ~: vCommonFromString "begin:vcard\r\nend:vcard"
+                             @?= Map.fromList [("begin", [(Map.empty, "vcard")])
+                                              , ("end", [(Map.empty, "vcard")])] 
+         ]
+
+
 main :: IO ()
-main = do res <- runTestTT tests
-          putStr ((show res) ++ "\n")
+main = do putStr "ContentLine tests:\n"       
+          _ <- runTestTT clTests
+          putStr "VCommon tests:\n"
+          _ <- runTestTT vcTests
+          return ()
+
