@@ -52,7 +52,7 @@ vcTests = test [
                                              , ContentLine "end" Map.empty "vcard"]
                              @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                               , ("end", [(Map.empty, "vcard")])] 
-          , "happy path" ~: vCommonFromString "begin:vcard\r\nend:vcard"
+          , "happy path" ~: mimeDirFromString "begin:vcard\r\nend:vcard"
                              @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                               , ("end", [(Map.empty, "vcard")])] 
          ]
