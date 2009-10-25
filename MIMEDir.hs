@@ -1,5 +1,5 @@
-module VCommon where
-
+module MIMEDir where
+-- MIMEDir is basically a haskell view of text/directory content-type
 import qualified Data.Map as Map
 import qualified Data.Maybe as Mb
 import qualified Data.List as List
@@ -10,11 +10,11 @@ type ParamValue = String
 type PropValue = String
 type Parameters = Map.Map ParamName ParamValue
 
-type VCommon = Map.Map PropName [(Parameters, PropValue)]
+type MIMEDir = Map.Map PropName [(Parameters, PropValue)]
 
-data ContentLine = ContentLine {name :: PropName,
-                                parameters :: Parameters,
-                                value :: PropValue}
+data ContentLine = ContentLine {name :: PropName
+                                , parameters :: Parameters
+                                , value :: PropValue}
 
 splitList :: (Eq a) => a -> [a] -> [ [a] ]
 splitList _ [] = [] 
@@ -58,34 +58,34 @@ readContentLines str = case reads str :: [(ContentLine, String)] of
                          [(cl, rest)] -> cl : readContentLines rest
                          _ -> error ("Failed to parse line '" ++ str ++ "'")
 
-foldVCommon' :: String -> Int -> String
-foldVCommon' "" _ = ""
-foldVCommon' ('\r' : '\n' : rest) _ = "\r\n" ++ foldVCommon' rest 0
-foldVCommon' (h : t) n | n < 75 = h : (foldVCommon' t (n+1))
-                       | otherwise = "\r\n " ++ (h : foldVCommon' t 0) 
+foldMIMEDir' :: String -> Int -> String
+foldMIMEDir' "" _ = ""
+foldMIMEDir' ('\r' : '\n' : rest) _ = "\r\n" ++ foldMIMEDir' rest 0
+foldMIMEDir' (h : t) n | n < 75 = h : (foldMIMEDir' t (n+1))
+                       | otherwise = "\r\n " ++ (h : foldMIMEDir' t 0) 
 
-foldVCommon :: String -> String
-foldVCommon str = foldVCommon' str 0 
+foldMIMEDir :: String -> String
+foldMIMEDir str = foldMIMEDir' str 0 
 
-unfoldVCommon :: String -> String
-unfoldVCommon "" = ""
-unfoldVCommon str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str 
-                      = unfoldVCommon (drop 3 str)
-                  | otherwise = (head str) : unfoldVCommon (tail str)
+unfoldMIMEDir :: String -> String
+unfoldMIMEDir "" = ""
+unfoldMIMEDir str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str 
+                      = unfoldMIMEDir (drop 3 str)
+                  | otherwise = (head str) : unfoldMIMEDir (tail str)
 
-insertCl2VCommon :: VCommon -> ContentLine -> VCommon
-insertCl2VCommon vc cl = let clName = name cl in
+insertCl2MIMEDir :: MIMEDir -> ContentLine -> MIMEDir
+insertCl2MIMEDir vc cl = let clName = name cl in
                          case Map.lookup clName vc of 
                              Just v -> Map.insert clName 
                                        ((parameters cl, value cl):v) vc
                              Nothing -> Map.insert clName
                                        [(parameters cl, value cl)] vc
 
-contentLines2VCommon :: [ContentLine] -> VCommon
-contentLines2VCommon = foldl (insertCl2VCommon) Map.empty 
+contentLines2MIMEDir :: [ContentLine] -> MIMEDir
+contentLines2MIMEDir = foldl (insertCl2MIMEDir) Map.empty 
 
-vCommon2ContentLines :: VCommon -> [ContentLine]
-vCommon2ContentLines = Map.foldWithKey (\k v res -> 
+mimeDir2ContentLines :: MIMEDir -> [ContentLine]
+mimeDir2ContentLines = Map.foldWithKey (\k v res -> 
                        (foldr (\(prop, val) cls_per_name 
                                -> (ContentLine k prop val) : cls_per_name) [] v) ++ res) []
 
@@ -99,15 +99,15 @@ instance Eq ContentLine where
 instance Show ContentLine where 
     showsPrec _ cl = \s -> name cl ++ (showParams . parameters) cl ++ ":" ++ value cl ++ "\r\n" ++ s
 
-vCommonFromString :: String -> VCommon
-vCommonFromString str = contentLines2VCommon $ readContentLines $ unfoldVCommon str
+mimeDirFromString :: String -> MIMEDir
+mimeDirFromString str = contentLines2MIMEDir $ readContentLines $ unfoldMIMEDir str
 
-vCommonToString :: VCommon -> String
-vCommonToString vc = (foldVCommon . (shows $ vCommon2ContentLines vc)) ""
+mimeDirToString :: MIMEDir -> String
+mimeDirToString vc = (foldMIMEDir . (shows $ mimeDir2ContentLines vc)) ""
 
-isVCommonValid :: (PropName -> PropValue -> Parameters -> Bool) -> VCommon -> Bool
-isVCommonValid checkFunc vc = and (map (checkCL checkFunc) cls) where 
-    cls = vCommon2ContentLines vc
+isMIMEDirValid :: (PropName -> PropValue -> Parameters -> Bool) -> MIMEDir -> Bool
+isMIMEDirValid checkFunc vc = and (map (checkCL checkFunc) cls) where 
+    cls = mimeDir2ContentLines vc
    
 
 checkCL :: (PropName -> PropValue -> Parameters -> Bool) -> ContentLine -> Bool

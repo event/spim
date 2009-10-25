@@ -1,12 +1,19 @@
 module VCard where
 
-import qualified VCommon as VC
+import qualified MIMEDir as MD
 import qualified Data.Map as Map
 
-date VCard = VC.VCommon
+type VCard = MD.MIMEDir
+
+toVCard :: String -> Maybe VCard
+toVCard s = let vc = MD.mimeDirFromString s in
+            if checkVCard vc then
+                Just vc
+            else
+                Nothing
 
 checkVCard :: VCard -> Bool
-checkVCard = isVCommonValid vcardCLCheck
+checkVCard = isMIMEDirValid vcardCLCheck
 
 checkRemoveFirstLast :: [ContentLine] -> Maybe [ContentLine]
 checkRemoveFirstLast cl:cls = let res = init cls
@@ -38,7 +45,7 @@ notAllowed x = False
 anyAllowed :: a -> Bool
 anyAllowed x = True
 
-stdProps :: Map.Map VC.PropName (VC.PropValue -> Bool, VC.Parameters -> Bool)
+stdProps :: Map.Map MD.PropName (MD.PropValue -> Bool, MD.Parameters -> Bool)
 stdProps = Map.fromList [("NAME", (anyAllowed, notAllowed))
                         , ("BEGIN", (=="VCARD", notAllowed))
                         , ("END", (=="VCARD", notAllowed))

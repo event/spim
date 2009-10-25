@@ -1,4 +1,3 @@
--- add a vcard/vcalendar file into the pim graph
 module Main where
 
 import IO

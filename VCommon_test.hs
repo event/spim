@@ -2,7 +2,7 @@ module Main where
 
 import Test.HUnit
 import qualified Data.Map as Map
-import VCommon
+import MIMEDir
 
 clTests = test 
         -- positive tests
@@ -39,16 +39,16 @@ vcTests = test [
           , "readCLs2" ~: readContentLines "begin:vcard\r\nend:vcard\r\n"
                            @?= [ContentLine "begin" Map.empty "vcard"
                                , ContentLine "end" Map.empty "vcard"] 
-          , "insertCl2VCommon" ~: insertCl2VCommon Map.empty 
+          , "insertCl2MIMEDir" ~: insertCl2MIMEDir Map.empty 
                                   (ContentLine "begin" Map.empty "vcard")
                                   @?= Map.fromList 
                                           [("begin", [(Map.empty, "vcard")])]
-          , "insertCl2VCommon2" ~: insertCl2VCommon (insertCl2VCommon Map.empty 
+          , "insertCl2MIMEDir2" ~: insertCl2MIMEDir (insertCl2MIMEDir Map.empty 
                                                      (ContentLine "begin" Map.empty "vcard"))  
                                     (ContentLine "end" Map.empty "vcard")
                                     @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                                      , ("end", [(Map.empty, "vcard")])] 
-          , "cls2vc" ~: contentLines2VCommon [ContentLine "begin" Map.empty "vcard"
+          , "cls2vc" ~: contentLines2MIMEDir [ContentLine "begin" Map.empty "vcard"
                                              , ContentLine "end" Map.empty "vcard"]
                              @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                               , ("end", [(Map.empty, "vcard")])] 
@@ -61,7 +61,7 @@ vcTests = test [
 main :: IO ()
 main = do putStr "ContentLine tests:\n"       
           _ <- runTestTT clTests
-          putStr "VCommon tests:\n"
+          putStr "MIMEDir tests:\n"
           _ <- runTestTT vcTests
           return ()
 
