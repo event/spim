@@ -2,6 +2,7 @@ module SpimIndex where
 
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
+import qualified Data.List as List
 
 type SpimIndex = MD.MIMEDir
 
@@ -13,9 +14,9 @@ toSpimIndex s = let index = MD.mimeDirFromString s in
                 Nothing
 
 checkIndex :: SpimIndex -> Bool
-checkIndex = isMIMEDirValid indexCLCheck
+checkIndex = MD.isMIMEDirValid indexCLCheck
 
 
-indexCLCheck :: PropName -> PropValue -> Parameters -> Bool
-indexCLCheck name _ params = isPrefixOf "Entry" PropName && Map.null params
+indexCLCheck :: MD.PropName -> MD.PropValue -> MD.Parameters -> Bool
+indexCLCheck name _ params = List.isPrefixOf "Entry" name && Map.null params
 

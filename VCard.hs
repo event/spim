@@ -2,6 +2,9 @@ module VCard where
 
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
+import Data.Map ((!))
+import Data.List as List
+
 
 type VCard = MD.MIMEDir
 
@@ -13,43 +16,43 @@ toVCard s = let vc = MD.mimeDirFromString s in
                 Nothing
 
 checkVCard :: VCard -> Bool
-checkVCard = isMIMEDirValid vcardCLCheck
+checkVCard = MD.isMIMEDirValid vcardCLCheck
 
-checkRemoveFirstLast :: [ContentLine] -> Maybe [ContentLine]
-checkRemoveFirstLast cl:cls = let res = init cls
-                                  lastCl = last cls
-                                  goodBegin = (name cl) == "BEGIN" 
-                                              && (value cl) == "VCARD" 
-                                              && Map.null (properties cl)
-                                  goodEnd = (name cl) == "END" 
-                                            && (value cl) == "VCARD" 
-                                            && Map.null (properties cl)
-                              in
-                                if goodBegin && goodEnd then 
-                                    Just res
-                                else
-                                    Nothing
+checkRemoveFirstLast :: [MD.ContentLine] -> Maybe [MD.ContentLine]
+checkRemoveFirstLast (cl:cls) = let res = init cls
+                                    lastCl = last cls
+                                    goodBegin = (MD.name cl) == "BEGIN" 
+                                                && (MD.value cl) == "VCARD" 
+                                                && Map.null (MD.parameters cl)
+                                    goodEnd = (MD.name cl) == "END" 
+                                              && (MD.value cl) == "VCARD" 
+                                              && Map.null (MD.parameters cl)
+                                in
+                                  if goodBegin && goodEnd then 
+                                      Just res
+                                  else
+                                      Nothing
 
 
-vcardCLCheck :: PropName -> PropValue -> Parameters -> Bool
+vcardCLCheck :: MD.PropName -> MD.PropValue -> MD.Parameters -> Bool
 vcardCLCheck name value params | Map.member name stdProps 
-                                   = (fst stdProps!name) value && (snd stdProps!name) params
+                                   = (fst (stdProps!name)) value && (snd (stdProps!name)) params
                                | otherwise = checkUnsupp name
 
 checkUnsupp :: String -> Bool
-checkUnsupp = isPrefixOf "X-"
- 
+checkUnsupp = List.isPrefixOf "X-"
+                                                                                                
 notAllowed :: a -> Bool
 notAllowed x = False
-
+               
 anyAllowed :: a -> Bool
 anyAllowed x = True
 
 stdProps :: Map.Map MD.PropName (MD.PropValue -> Bool, MD.Parameters -> Bool)
 stdProps = Map.fromList [("NAME", (anyAllowed, notAllowed))
-                        , ("BEGIN", (=="VCARD", notAllowed))
-                        , ("END", (=="VCARD", notAllowed))
-                        , ("PROFILE", (=="VCARD", notAllowed))
+                        , ("BEGIN", ((=="VCARD"), notAllowed))
+                        , ("END", ((=="VCARD"), notAllowed))
+                        , ("PROFILE", ((=="VCARD"), notAllowed))
                         , ("SOURCE", (anyAllowed, anyAllowed))
                         , ("FN", (anyAllowed, anyAllowed))
                         , ("N" ,(anyAllowed, anyAllowed))
