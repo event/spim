@@ -10,7 +10,7 @@ import Data.Map ( (!) )
 default (Int)
 
 
-indecies = ["indecies/email.idx", "indecies/cellphone.idx"]
+indexedFields = ["EMAIL", "TEL"]
 badRepoEC =  1
 badObjectEC = 2
 
@@ -50,14 +50,28 @@ indexInsert dir field index = let newValues = snd (unzip $ dir!field) in
                                   
 
 saveMimeDirs :: [MD.MIMEDir] -> IO ()
-saveMimeDirs dir = writeFile (MD.getSpimUID dir) (MD.mimeDirToString dir)
+saveMimeDirs [] = do return ()
+saveMimeDirs (dir:dirs) = do 
+  saveMimeDir dir
+  saveMimeDirs dirs
 
-saveIndices :: [MD.MIMEDir] -> IO ()
-saveIndices = nothing
+saveMimeDir :: MD.MIMEDir -> IO ()
+saveMimeDir dir = do writeFile (MD.getSpimUID dir) (MD.mimeDirToString dir)
+
+saveIndices :: [SI.SpimIndex] -> IO ()
+saveIndices [] = do return ()
+saveIndices (idx:idxs) = do
+  saveIndex idx
+  saveIndices idxs
+
+saveIndex :: SI.SpimIndex -> IO ()
+saveIndex idx = do writeFile ("indices/" ++ (SI.getIndexField idx) ++ ".idx") 
+                                 (MD.mimeDirToString idx)
+
 
 loadIndices :: IO [SI.SpimIndex]
 loadIndices = do
-  x <- readFiles indecies
+  x <- readFiles (map (\fld -> "indices/" ++ fld ++ ".idx") indexedFields)
   return (map 
           (Mb.fromJust . SI.toSpimIndex) 
           x)
