@@ -1,0 +1,74 @@
+module SpimCommon where
+
+import IO
+import qualified SpimIndex as SI
+import qualified Maybe as Mb
+import qualified MIMEDir as MD
+import qualified Data.Map as Map
+import Data.Map ( (!) )
+
+default (Int)
+
+
+indecies = ["indecies/email.idx", "indecies/cellphone.idx"]
+badRepoEC =  1
+badObjectEC = 2
+
+
+addToRepo :: [MD.MIMEDir] -> IO ()
+addToRepo piObjects = do indices <- loadIndices
+                         let updIndices = updateIndices indices piObjects 
+                         saveMimeDirs piObjects
+                         saveIndices updIndices
+                         commit
+                         
+                                  
+
+
+
+nothing = error "not yet implemented"
+
+commit :: IO()
+commit = nothing
+
+-- updateIndicies have to generate warnings
+updateIndices :: [SI.SpimIndex] -> [MD.MIMEDir] -> [SI.SpimIndex]
+updateIndices indices mimeDirs = 
+    let indexMap = Map.fromList (map (\idx -> (SI.getIndexField idx, idx)) indices) in
+    Map.elems (updateIdxsWDirs indexMap mimeDirs) 
+
+updateIdxsWDirs :: Map.Map String SI.SpimIndex -> [MD.MIMEDir] -> Map.Map String SI.SpimIndex
+updateIdxsWDirs indexMap [] = indexMap
+updateIdxsWDirs indexMap (dir:dirs) = updateIdxsWDirs (updateProps indexMap dir) dirs
+
+updateProps :: Map.Map String SI.SpimIndex -> MD.MIMEDir -> Map.Map String SI.SpimIndex
+updateProps indexMap dir = Map.mapWithKey (indexInsert dir) indexMap
+                         
+indexInsert :: MD.MIMEDir -> String -> SI.SpimIndex -> SI.SpimIndex
+indexInsert dir field index = let newValues = snd (unzip $ dir!field) in
+                              SI.addValueToIndex index newValues (MD.getSpimUID dir)
+                                  
+
+saveMimeDirs :: [MD.MIMEDir] -> IO ()
+saveMimeDirs dir = writeFile (MD.getSpimUID dir) (MD.mimeDirToString dir)
+
+saveIndices :: [MD.MIMEDir] -> IO ()
+saveIndices = nothing
+
+loadIndices :: IO [SI.SpimIndex]
+loadIndices = do
+  x <- readFiles indecies
+  return (map 
+          (Mb.fromJust . SI.toSpimIndex) 
+          x)
+
+isSpimRepo :: FilePath -> IO Bool
+isSpimRepo _ = do return True
+
+readFiles :: [FilePath] -> IO [String]
+readFiles [] = do return []
+readFiles (fp:fps) = do 
+  t <- readFile fp
+  ts <- readFiles fps
+  return (t:ts)
+
