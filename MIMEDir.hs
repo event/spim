@@ -3,6 +3,7 @@ module MIMEDir where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Mb
 import qualified Data.List as List
+import Data.Map ((!))
 
 type PropName = String
 type ParamName = String
@@ -15,6 +16,14 @@ type MIMEDir = Map.Map PropName [(Parameters, PropValue)]
 data ContentLine = ContentLine {name :: PropName
                                 , parameters :: Parameters
                                 , value :: PropValue}
+
+spimUIDProp = "X-SpimUID"
+
+getSpimUID :: MIMEDir -> String
+getSpimUID dir = snd $ head (dir!spimUIDProp)
+
+propValueToList :: PropValue -> [String]
+propValueToList = splitList ','
 
 splitList :: (Eq a) => a -> [a] -> [ [a] ]
 splitList _ [] = [] 
