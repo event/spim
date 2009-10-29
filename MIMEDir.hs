@@ -83,12 +83,12 @@ unfoldMIMEDir str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str
                   | otherwise = (head str) : unfoldMIMEDir (tail str)
 
 insertCl2MIMEDir :: MIMEDir -> ContentLine -> MIMEDir
-insertCl2MIMEDir vc cl = let clName = name cl in
-                         case Map.lookup clName vc of 
+insertCl2MIMEDir dir cl = let clName = name cl in
+                         case Map.lookup clName dir of 
                              Just v -> Map.insert clName 
-                                       ((parameters cl, value cl):v) vc
+                                       ((parameters cl, value cl):v) dir
                              Nothing -> Map.insert clName
-                                       [(parameters cl, value cl)] vc
+                                       [(parameters cl, value cl)] dir
 
 contentLines2MIMEDir :: [ContentLine] -> MIMEDir
 contentLines2MIMEDir = foldl (insertCl2MIMEDir) Map.empty 
@@ -112,11 +112,11 @@ mimeDirFromString :: String -> MIMEDir
 mimeDirFromString str = contentLines2MIMEDir $ readContentLines $ unfoldMIMEDir str
 
 mimeDirToString :: MIMEDir -> String
-mimeDirToString vc = (foldMIMEDir . (shows $ mimeDir2ContentLines vc)) ""
+mimeDirToString dir = (foldMIMEDir . (shows $ mimeDir2ContentLines dir)) ""
 
 isMIMEDirValid :: (PropName -> PropValue -> Parameters -> Bool) -> MIMEDir -> Bool
-isMIMEDirValid checkFunc vc = and (map (checkCL checkFunc) cls) where 
-    cls = mimeDir2ContentLines vc
+isMIMEDirValid checkFunc dir = and (map (checkCL checkFunc) cls) where 
+    cls = mimeDir2ContentLines dir
    
 
 checkCL :: (PropName -> PropValue -> Parameters -> Bool) -> ContentLine -> Bool

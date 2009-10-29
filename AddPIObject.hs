@@ -21,9 +21,9 @@ main = do repoDir:objectFNames <- SysEnv.getArgs
                       Spim.addToRepo piObjects
                       
   
-
+-- X-SpimUID have to be set among others
 checkAndProcess :: [FilePath] -> IO [MD.MIMEDir]
-checkAndProcess = error "erorr"
+checkAndProcess = Spim.nothing
 
          
          

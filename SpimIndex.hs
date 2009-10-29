@@ -33,8 +33,8 @@ addValuesToIndex :: SpimIndex -> [String] -> String -> SpimIndex
 addValuesToIndex idx [] uid = idx
 addValuesToIndex idx (v:vs) uid = case Map.lookup v idx of
                                     Nothing -> Map.insert v [(Map.empty, uid)] idx
-                                    Just [(_, uids)] -> Map.insert v 
-                                                        [(Map.empty, uids ++ "," ++ uid)] idx
+                                    Just [(p, uids)] -> Map.insert v 
+                                                        [(p, uids ++ "," ++ uid)] idx
 
 
 toSpimIndex :: String -> Maybe SpimIndex
@@ -49,5 +49,5 @@ checkIndex = MD.isMIMEDirValid indexCLCheck
 
 
 indexCLCheck :: MD.PropName -> MD.PropValue -> MD.Parameters -> Bool
-indexCLCheck _ _ params = Map.null params
+indexCLCheck _ _ = Map.null
 
