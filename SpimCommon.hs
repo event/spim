@@ -17,15 +17,19 @@ badObjectEC = 2
 
 
 addToRepo :: [MD.MIMEDir] -> IO ()
-addToRepo piObjects = do indices <- loadIndices
+addToRepo piObjects = do indices <- loadIndices 
                          let updIndices = updateIndices indices piObjects 
                          saveMimeDirs piObjects
                          saveIndices updIndices
 --                         commit
                          
-                                  
 
 
+printIdxs :: [SI.SpimIndex] -> IO ()
+printIdxs [] = do return ()
+printIdxs (idx:idxs) = do 
+  putStr (MD.mimeDirToString idx)
+  printIdxs idxs
 
 nothing = error "not yet implemented"
 
@@ -46,8 +50,10 @@ updateProps :: Map.Map String SI.SpimIndex -> MD.MIMEDir -> Map.Map String SI.Sp
 updateProps indexMap dir = Map.mapWithKey (indexInsert dir) indexMap
                          
 indexInsert :: MD.MIMEDir -> String -> SI.SpimIndex -> SI.SpimIndex
-indexInsert dir field index = let newValues = snd (unzip $ dir!field) in
-                              SI.addValueToIndex index newValues (MD.getSpimUID dir)
+indexInsert dir field index = case Map.lookup field dir of
+                                Nothing -> index
+                                Just v -> let newValues = snd (unzip $ v) in
+                                          SI.addValueToIndex index newValues (MD.getSpimUID dir)
                                   
 saveMimeDirs :: [MD.MIMEDir] -> IO ()
 saveMimeDirs [] = do return ()
