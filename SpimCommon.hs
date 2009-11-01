@@ -1,6 +1,7 @@
 module SpimCommon where
 
 import IO
+import System.Directory as SysDir
 import qualified SpimIndex as SI
 import qualified Maybe as Mb
 import qualified MIMEDir as MD
@@ -20,7 +21,7 @@ addToRepo piObjects = do indices <- loadIndices
                          let updIndices = updateIndices indices piObjects 
                          saveMimeDirs piObjects
                          saveIndices updIndices
-                         commit
+--                         commit
                          
                                   
 
@@ -48,7 +49,6 @@ indexInsert :: MD.MIMEDir -> String -> SI.SpimIndex -> SI.SpimIndex
 indexInsert dir field index = let newValues = snd (unzip $ dir!field) in
                               SI.addValueToIndex index newValues (MD.getSpimUID dir)
                                   
-
 saveMimeDirs :: [MD.MIMEDir] -> IO ()
 saveMimeDirs [] = do return ()
 saveMimeDirs (dir:dirs) = do 
@@ -67,7 +67,6 @@ saveIndices (idx:idxs) = do
 saveIndex :: SI.SpimIndex -> IO ()
 saveIndex idx = do writeFile ("indices/" ++ (SI.getIndexField idx) ++ ".idx") 
                                  (MD.mimeDirToString idx)
-
 
 loadIndices :: IO [SI.SpimIndex]
 loadIndices = do

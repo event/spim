@@ -7,6 +7,8 @@ import qualified System.Cmd as Cmd
 import qualified System.Exit as Exit
 import qualified SpimCommon as Spim
 import qualified MIMEDir as MD
+import qualified Data.Map as Map
+import qualified Data.Char as Char
 import qualified VCard
 --import qualified VCal
 
@@ -21,10 +23,20 @@ main = do repoDir:objectFNames <- SysEnv.getArgs
                       Spim.addToRepo piObjects
                       
   
--- X-SpimUID have to be set among others
+
 checkAndProcess :: [FilePath] -> IO [MD.MIMEDir]
-checkAndProcess = Spim.nothing
+checkAndProcess fnames = do 
+  strings <- Spim.readFiles fnames
+  let dirs = convert strings
+  return dirs
 
          
+convert :: [String] -> [MD.MIMEDir]         
+convert = map convertOne
          
-         
+convertOne :: String -> MD.MIMEDir
+convertOne s = let d = digest s in
+               Map.insert MD.spimUIDProp [(Map.empty, d)] (MD.mimeDirFromString s) 
+
+digest :: String -> String 
+digest s = show  (foldr ((+) . Char.ord) 0 s)

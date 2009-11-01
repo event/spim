@@ -50,8 +50,9 @@ readParams (';' : paramStr) = Map.fromList $ map readParam (splitList ';' paramS
 readParams [] = Map.empty
 
 readParam :: String -> (ParamName, ParamValue)
-readParam s = let (paramName, '=' : valuesStr) = span (/='=') s in
-              (paramName, valuesStr)
+readParam s = case span (/='=') s of
+                (paramName, '=' : valuesStr) -> (paramName, valuesStr)
+                (paramName, []) -> (paramName, [])
          
 showParams :: Parameters -> String
 showParams = Map.foldWithKey (\k v res -> res ++ ";" ++ k ++ "=" ++ v) ""
