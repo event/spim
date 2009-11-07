@@ -1,7 +1,8 @@
 module SpimCommon where
 
 import IO
-import System.Directory as SysDir
+import qualified System.Directory as SysDir
+import qualified System.Cmd as Cmd
 import qualified SpimIndex as SI
 import qualified Maybe as Mb
 import qualified MIMEDir as MD
@@ -21,22 +22,19 @@ addToRepo piObjects = do indices <- loadIndices
                          let updIndices = updateIndices indices piObjects 
                          saveMimeDirs piObjects
                          saveIndices updIndices
---                         commit
+                         commit (createCommitComment piObjects)
                          
 
 
-printIdxs :: [SI.SpimIndex] -> IO ()
-printIdxs [] = do return ()
-printIdxs (idx:idxs) = do 
-  putStr (MD.mimeDirToString idx)
-  printIdxs idxs
-
 nothing = error "not yet implemented"
 
-commit :: IO()
-commit = nothing
+createCommitComment :: [MD.MIMEDir] -> String
+createCommitComment _ = "comment!"
 
--- updateIndicies have to generate warnings
+commit :: String -> IO()
+commit comment = do Cmd.system ("git-commit -a -m " ++ comment)
+                    return ()
+
 updateIndices :: [SI.SpimIndex] -> [MD.MIMEDir] -> [SI.SpimIndex]
 updateIndices indices mimeDirs = 
     let indexMap = Map.fromList (map (\idx -> (SI.getIndexField idx, idx)) indices) in
@@ -62,7 +60,11 @@ saveMimeDirs (dir:dirs) = do
   saveMimeDirs dirs
 
 saveMimeDir :: MD.MIMEDir -> IO ()
-saveMimeDir dir = do writeFile (MD.getSpimUID dir) (MD.mimeDirToString dir)
+saveMimeDir dir = do 
+  let fname = MD.getSpimUID dir
+  writeFile fname (MD.mimeDirToString dir)
+  Cmd.system ("git-add " ++ fname)
+  return ()
 
 saveIndices :: [SI.SpimIndex] -> IO ()
 saveIndices [] = do return ()

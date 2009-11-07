@@ -10,6 +10,7 @@ import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.Char as Char
 import qualified VCard
+import Data.Map ((!))
 --import qualified VCal
 
 main :: IO()
@@ -28,15 +29,32 @@ checkAndProcess :: [FilePath] -> IO [MD.MIMEDir]
 checkAndProcess fnames = do 
   strings <- Spim.readFiles fnames
   let dirs = convert strings
-  return dirs
+  fnames <- SysDir.getDirectoryContents "."
+  return (setUids fnames dirs)
 
          
 convert :: [String] -> [MD.MIMEDir]         
-convert = map convertOne
-         
-convertOne :: String -> MD.MIMEDir
-convertOne s = let d = digest s in
-               Map.insert MD.spimUIDProp [(Map.empty, d)] (MD.mimeDirFromString s) 
+convert = map MD.mimeDirFromString
+
+setUids :: [String] -> [MD.MIMEDir] -> [MD.MIMEDir]
+setUids _ [] = []
+setUids namesInUse (dir:dirs) = let uids = digestList (digest (snd $ head $ dir!"FN") 
+                                                       ++ digest (snd $ head $ dir!"TEL")) 
+                                    uid = chooseUnseen namesInUse uids
+                                    newNamesInUse = uid : namesInUse
+                                in
+                                  (setUid uid dir) : (setUids newNamesInUse dirs) 
+                                      where
+                                        setUid uid = Map.insert 
+                                                     MD.spimUIDProp [(Map.empty, uid)] 
+
+chooseUnseen :: [String] -> [String] -> String
+chooseUnseen seen (src:srcs) = if src `elem` seen then
+                                   chooseUnseen seen srcs
+                               else 
+                                   src
+
+digestList x = x : digestList (x ++ "0")
 
 digest :: String -> String 
 digest s = show  (foldr ((+) . Char.ord) 0 s)
