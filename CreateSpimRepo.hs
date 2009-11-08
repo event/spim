@@ -1,4 +1,4 @@
-hmodule Main where
+module Main where
 
 import IO
 import qualified System.Environment as SysEnv
