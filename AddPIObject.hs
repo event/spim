@@ -20,8 +20,10 @@ main = do repoDir:objectFNames <- SysEnv.getArgs
               then do putStr ("Error: '" ++ repoDir ++ "' is not an spim repository")
                       Exit.exitWith (Exit.ExitFailure Spim.badRepoEC) 
               else do piObjects <- checkAndProcess objectFNames
+                      oldDir <- SysDir.getCurrentDirectory
                       SysDir.setCurrentDirectory repoDir
                       Spim.addToRepo piObjects
+                      SysDir.setCurrentDirectory oldDir
                       
   
 
