@@ -78,10 +78,19 @@ saveIndex idx = do writeFile ("indices/" ++ (SI.getIndexField idx) ++ ".idx")
 
 loadIndices :: IO [SI.SpimIndex]
 loadIndices = do
-  x <- readFiles (map (\fld -> "indices/" ++ fld ++ ".idx") indexedFields)
-  return (map 
-          (Mb.fromJust . SI.toSpimIndex) 
-          x)
+  loadIndices indexedFields
+  where
+    loadIndices [] = do return []
+    loadIndices (fld:fields) = do
+                head <- loadIndex fld
+                tail <- loadIndices fields
+                return (head : tail)
+
+loadIndex :: String -> IO SI.SpimIndex
+loadIndex fld = do 
+  content <- readFile ("indices/" ++ fld ++ ".idx") 
+                `catch` \e -> do return ("BEGIN:INDEX\r\nFIELD:" ++ fld ++ "\r\nEND:INDEX\r\n")
+  return (Mb.fromJust $ SI.toSpimIndex content)
 
 isSpimRepo :: FilePath -> IO Bool
 isSpimRepo _ = do return True
