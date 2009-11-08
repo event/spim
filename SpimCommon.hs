@@ -32,7 +32,7 @@ createCommitComment :: [MD.MIMEDir] -> String
 createCommitComment _ = "comment!"
 
 commit :: String -> IO()
-commit comment = do Cmd.system ("git-commit -a -m " ++ comment)
+commit comment = do Cmd.system ("git commit -a -m " ++ comment)
                     return ()
 
 updateIndices :: [SI.SpimIndex] -> [MD.MIMEDir] -> [SI.SpimIndex]
@@ -63,7 +63,7 @@ saveMimeDir :: MD.MIMEDir -> IO ()
 saveMimeDir dir = do 
   let fname = MD.getSpimUID dir
   writeFile fname (MD.mimeDirToString dir)
-  Cmd.system ("git-add " ++ fname)
+  Cmd.system ("git add " ++ fname)
   return ()
 
 saveIndices :: [SI.SpimIndex] -> IO ()
