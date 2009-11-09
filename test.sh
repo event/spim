@@ -2,4 +2,5 @@
 
 rm -rf testrepo
 ./CreateSpimRepo testrepo
-./AddPIObject testrepo test.vcard
+./AddPIObject testrepo testvcards/1
+./AddPIObject testrepo testvcards/2
