@@ -23,8 +23,6 @@ addToRepo piObjects = do indices <- loadIndices
                          saveMimeDirs piObjects
                          saveIndices updIndices
                          commit (createCommitComment piObjects)
-                         
-
 
 nothing = error "not yet implemented"
 
@@ -73,8 +71,10 @@ saveIndices (idx:idxs) = do
   saveIndices idxs
 
 saveIndex :: SI.SpimIndex -> IO ()
-saveIndex idx = do writeFile ("indices/" ++ (SI.getIndexField idx) ++ ".idx") 
-                                 (MD.mimeDirToString idx)
+saveIndex idx = do let fname = "indices/" ++ (SI.getIndexField idx) ++ ".idx"
+                   writeFile fname (MD.mimeDirToString idx)
+                   Cmd.system ("git add " ++ fname) 
+                   return ()
 
 loadIndices :: IO [SI.SpimIndex]
 loadIndices = do
