@@ -113,7 +113,7 @@ mimeDirFromString :: String -> MIMEDir
 mimeDirFromString str = contentLines2MIMEDir $ readContentLines $ unfoldMIMEDir str
 
 mimeDirToString :: MIMEDir -> String
-mimeDirToString dir = (foldMIMEDir . (shows $ mimeDir2ContentLines dir)) ""
+mimeDirToString dir = foldMIMEDir (foldr shows "" (mimeDir2ContentLines dir))
 
 isMIMEDirValid :: (PropName -> PropValue -> Parameters -> Bool) -> MIMEDir -> Bool
 isMIMEDirValid checkFunc dir = and (map (checkCL checkFunc) cls) where 

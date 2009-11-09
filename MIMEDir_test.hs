@@ -55,6 +55,10 @@ vcTests = test [
           , "happy path" ~: mimeDirFromString "begin:vcard\r\nend:vcard"
                              @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                               , ("end", [(Map.empty, "vcard")])] 
+          , "reverse happy path" ~: mimeDirToString 
+                                     (Map.fromList [("begin", [(Map.empty, "vcard")])
+                                                   , ("end", [(Map.empty, "vcard")])])
+                                     @?= "begin:vcard\r\nend:vcard\r\n"
          ]
 
 
