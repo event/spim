@@ -9,9 +9,7 @@ import qualified SpimCommon as Spim
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.Char as Char
-import qualified VCard
 import Data.Map ((!))
---import qualified VCal
 
 main :: IO()
 main = do repoDir:objectFNames <- SysEnv.getArgs

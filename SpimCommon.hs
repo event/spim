@@ -26,6 +26,9 @@ addToRepo piObjects = do indices <- loadIndices
 
 nothing = error "not yet implemented"
 
+loadLink = nothing
+saveLink = nothing
+
 createCommitComment :: [MD.MIMEDir] -> String
 createCommitComment _ = "comment!"
 
