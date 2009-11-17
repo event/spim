@@ -29,11 +29,13 @@ nothing = error "not yet implemented"
 loadLink :: String -> IO MD.MIMEDir
 loadLink linkType = do
   content <- readFile ("links/" ++ linkType ++ ".link") 
-                `catch` \e -> do return ("BEGIN:LINK\r\nTYPE:" ++ linkType ++"\r\nEND:LINK\r\n")
+                `catch` \e -> do return ("BEGIN:LINK\r\nTYPE:" ++ linkType ++ "\r\nEND:LINK\r\n")
   return (MD.mimeDirFromString content)
 
 saveLink :: MD.MIMEDir -> IO ()
-saveLink = nothing
+saveLink link = let fname = "links/" ++ (snd $ head $ link!"TYPE") ++ ".link"
+                    content = MD.mimeDirToString link
+                in do writeFile fname content
 
 createCommitComment :: [MD.MIMEDir] -> String
 createCommitComment _ = "comment!"
