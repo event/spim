@@ -14,6 +14,7 @@ main = do
   exitCode <- Cmd.system "git init"  
   case exitCode of 
     Exit.ExitSuccess -> do SysDir.createDirectory "indices"
+                           SysDir.createDirectory "links"
                            putStr "Successfully created new personal data repository\n"
                            
     Exit.ExitFailure x -> do putStr ("Repository creation failed: git exit code: " 
