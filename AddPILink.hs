@@ -21,9 +21,9 @@ main = do repoDir:linkType:fromUID:toUIDs <- SysEnv.getArgs
               else do oldDir <- SysDir.getCurrentDirectory
                       SysDir.setCurrentDirectory repoDir
                       link <- Spim.loadLink linkType
-                      let link = Map.insert fromUID 
-                                 [(Map.empty, List.intercalate "," toUIDs)] link
-                      Spim.saveLink link
+                      let newLink = Map.insert fromUID 
+                                    [(Map.empty, List.intercalate "," toUIDs)] link
+                      Spim.saveLink newLink
                       SysDir.setCurrentDirectory oldDir
 
 
