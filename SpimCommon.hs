@@ -26,7 +26,13 @@ addToRepo piObjects = do indices <- loadIndices
 
 nothing = error "not yet implemented"
 
-loadLink = nothing
+loadLink :: String -> IO MD.MIMEDir
+loadLink linkType = do
+  content <- readFile ("links/" ++ linkType ++ ".link") 
+                `catch` \e -> do return ("BEGIN:LINK\r\nTYPE:" ++ linkType ++"\r\nEND:LINK\r\n")
+  return (MD.mimeDirFromString content)
+
+saveLink :: MD.MIMEDir -> IO ()
 saveLink = nothing
 
 createCommitComment :: [MD.MIMEDir] -> String
