@@ -7,7 +7,6 @@ import qualified System.Cmd as Cmd
 import qualified System.Exit as Exit
 import qualified SpimCommon as Spim
 import qualified MIMEDir as MD
-import qualified Data.Map as Map
 import qualified Data.Char as Char
 import Data.Map ((!))
 
@@ -45,8 +44,7 @@ setUids namesInUse (dir:dirs) = let uids = digestList (digest (snd $ head $ dir!
                                 in
                                   (setUid uid dir) : (setUids newNamesInUse dirs) 
                                       where
-                                        setUid uid = Map.insert 
-                                                     MD.spimUIDProp [(Map.empty, uid)] 
+                                        setUid uid = MD.add MD.spimUIDProp uid
 
 chooseUnseen :: [String] -> [String] -> String
 chooseUnseen seen (src:srcs) = if src `elem` seen then

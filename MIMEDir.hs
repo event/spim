@@ -91,16 +91,11 @@ unfoldMIMEDir str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str
                       = unfoldMIMEDir (drop 3 str)
                   | otherwise = (head str) : unfoldMIMEDir (tail str)
 
-insertCl2MIMEDir :: MIMEDir -> ContentLine -> MIMEDir
-insertCl2MIMEDir dir cl = let clName = name cl in
-                         case Map.lookup clName dir of 
-                             Just v -> Map.insert clName 
-                                       ((parameters cl, value cl):v) dir
-                             Nothing -> Map.insert clName
-                                       [(parameters cl, value cl)] dir
+insertCl2MIMEDir :: ContentLine -> MIMEDir -> MIMEDir
+insertCl2MIMEDir cl = addWParams (name cl) (parameters cl) (value cl)
 
 contentLines2MIMEDir :: [ContentLine] -> MIMEDir
-contentLines2MIMEDir = foldl (insertCl2MIMEDir) Map.empty 
+contentLines2MIMEDir = foldr (insertCl2MIMEDir) Map.empty 
 
 mimeDir2ContentLines :: MIMEDir -> [ContentLine]
 mimeDir2ContentLines = Map.foldWithKey (\k v res -> 

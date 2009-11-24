@@ -39,13 +39,12 @@ vcTests = test [
           , "readCLs2" ~: readContentLines "begin:vcard\r\nend:vcard\r\n"
                            @?= [ContentLine "begin" Map.empty "vcard"
                                , ContentLine "end" Map.empty "vcard"] 
-          , "insertCl2MIMEDir" ~: insertCl2MIMEDir Map.empty 
-                                  (ContentLine "begin" Map.empty "vcard")
-                                  @?= Map.fromList 
-                                          [("begin", [(Map.empty, "vcard")])]
-          , "insertCl2MIMEDir2" ~: insertCl2MIMEDir (insertCl2MIMEDir Map.empty 
-                                                     (ContentLine "begin" Map.empty "vcard"))  
-                                    (ContentLine "end" Map.empty "vcard")
+          , "insertCl2MIMEDir" ~: insertCl2MIMEDir (ContentLine "begin" Map.empty "vcard") 
+                                                   Map.empty
+                                   @?= Map.fromList [("begin", [(Map.empty, "vcard")])]
+          , "insertCl2MIMEDir2" ~: insertCl2MIMEDir (ContentLine "end" Map.empty "vcard")
+                                    (insertCl2MIMEDir (ContentLine "begin" Map.empty "vcard") 
+                                                      Map.empty)  
                                     @?= Map.fromList [("begin", [(Map.empty, "vcard")])
                                                      , ("end", [(Map.empty, "vcard")])] 
           , "cls2vc" ~: contentLines2MIMEDir [ContentLine "begin" Map.empty "vcard"

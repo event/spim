@@ -103,6 +103,7 @@ loadIndex fld = do
                 `catch` \e -> do return ("BEGIN:INDEX\r\nFIELD:" ++ fld ++ "\r\nEND:INDEX\r\n")
   return (Mb.fromJust $ SI.toSpimIndex content)
 
+-- TBI
 isSpimRepo :: FilePath -> IO Bool
 isSpimRepo _ = do return True
 
