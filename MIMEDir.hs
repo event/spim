@@ -19,8 +19,16 @@ data ContentLine = ContentLine {name :: PropName
 
 spimUIDProp = "X-SpimUID"
 
-getSpimUID :: MIMEDir -> String
+getSpimUID :: MIMEDir -> PropValue
 getSpimUID dir = snd $ head (dir!spimUIDProp)
+
+addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
+addWParams name params value dir = case Map.lookup name dir of
+                              Just oldVal -> Map.insert name ((params, value):oldVal) dir
+                              Nothing -> Map.insert name [(params, value)] dir
+
+add :: PropName -> PropValue -> MIMEDir -> MIMEDir
+add name value = addWParams name Map.empty value 
 
 propValueToList :: PropValue -> [String]
 propValueToList = splitList ','
