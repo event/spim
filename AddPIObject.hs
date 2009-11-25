@@ -7,8 +7,8 @@ import qualified System.Cmd as Cmd
 import qualified System.Exit as Exit
 import qualified SpimCommon as Spim
 import qualified MIMEDir as MD
+import qualified Maybe as Mb
 import qualified Data.Char as Char
-import Data.Map ((!))
 
 main :: IO()
 main = do repoDir:objectFNames <- SysEnv.getArgs
@@ -37,8 +37,8 @@ convert = map MD.mimeDirFromString
 
 setUids :: [String] -> [MD.MIMEDir] -> [MD.MIMEDir]
 setUids _ [] = []
-setUids namesInUse (dir:dirs) = let uids = digestList (digest (snd $ head $ dir!"FN") 
-                                                       ++ digest (snd $ head $ dir!"TEL")) 
+setUids namesInUse (dir:dirs) = let uids = digestList (digest (MD.getFirstValue "FN" dir) 
+                                                       ++ digest (MD.getFirstValue "TEL" dir)) 
                                     uid = chooseUnseen namesInUse uids
                                     newNamesInUse = uid : namesInUse
                                 in
@@ -54,5 +54,6 @@ chooseUnseen seen (src:srcs) = if src `elem` seen then
 
 digestList x = x : digestList (x ++ "0")
 
-digest :: String -> String 
-digest s = show  (foldr ((+) . Char.ord) 0 s)
+digest :: Maybe String -> String 
+digest Nothing = "0_0"
+digest (Just s) = show  (foldr ((+) . Char.ord) 0 s)

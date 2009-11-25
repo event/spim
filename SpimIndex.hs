@@ -16,33 +16,29 @@ module SpimIndex where
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.List as List
-import Data.Map((!))
+import qualified Maybe as Mb
 
 type SpimIndex = MD.MIMEDir
 indexFieldProp = "FIELD"
 
-getIndexField :: SpimIndex -> String
-getIndexField idx = snd $ head (idx ! indexFieldProp)
+getIndexField :: SpimIndex -> MD.PropValue
+getIndexField idx = Mb.fromJust (MD.getFirstValue indexFieldProp idx)
 
-addValueToIndex :: SpimIndex -> [MD.PropValue] -> String -> SpimIndex
-addValueToIndex idx [] uid = idx
-addValueToIndex idx value uid = let values = foldr ((++) . MD.propValueToList) [] value in
-                                 addValuesToIndex idx values uid
+addValueToIndex :: [MD.PropValue] -> String -> SpimIndex -> SpimIndex
+addValueToIndex [] uid idx = idx
+addValueToIndex value uid idx = let values = foldr ((++) . MD.propValueToList) [] value in
+                                addValuesToIndex values uid idx
 
-addValuesToIndex :: SpimIndex -> [String] -> String -> SpimIndex
-addValuesToIndex idx [] uid = idx
-addValuesToIndex idx (v:vs) uid = case Map.lookup v idx of
-                                    Nothing -> Map.insert v [(Map.empty, uid)] idx
-                                    Just [(p, uids)] -> Map.insert v 
-                                                        [(p, uids ++ "," ++ uid)] idx
-
+addValuesToIndex :: [String] -> String -> SpimIndex -> SpimIndex
+addValuesToIndex [] _ idx = idx
+addValuesToIndex (v:vs) uid idx = addValuesToIndex vs uid (MD.appendValue v uid idx)
 
 toSpimIndex :: String -> Maybe SpimIndex
 toSpimIndex s = let index = MD.mimeDirFromString s in
-            if checkIndex index then
-                Just index
-            else
-                Nothing
+                if checkIndex index then
+                    Just index
+                else
+                    Nothing
 
 checkIndex :: SpimIndex -> Bool
 checkIndex = MD.isMIMEDirValid indexCLCheck

@@ -7,7 +7,6 @@ import qualified SpimIndex as SI
 import qualified Maybe as Mb
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
-import Data.Map ( (!) )
 
 default (Int)
 
@@ -33,7 +32,7 @@ loadLink linkType = do
   return (MD.mimeDirFromString content)
 
 saveLink :: MD.MIMEDir -> IO ()
-saveLink link = let fname = "links/" ++ (snd $ head $ link!"TYPE") ++ ".link"
+saveLink link = let fname = "links/" ++ (Mb.fromJust (MD.getFirstValue "TYPE" link)) ++ ".link"
                     content = MD.mimeDirToString link
                 in do writeFile fname content
 
@@ -57,10 +56,10 @@ updateProps :: Map.Map String SI.SpimIndex -> MD.MIMEDir -> Map.Map String SI.Sp
 updateProps indexMap dir = Map.mapWithKey (indexInsert dir) indexMap
                          
 indexInsert :: MD.MIMEDir -> String -> SI.SpimIndex -> SI.SpimIndex
-indexInsert dir field index = case Map.lookup field dir of
+indexInsert dir field index = case MD.getAllValues field dir of
                                 Nothing -> index
-                                Just v -> let newValues = snd (unzip $ v) in
-                                          SI.addValueToIndex index newValues (MD.getSpimUID dir)
+                                Just newValues -> SI.addValueToIndex 
+                                                             newValues (MD.getSpimUID dir) index
                                   
 saveMimeDirs :: [MD.MIMEDir] -> IO ()
 saveMimeDirs [] = do return ()

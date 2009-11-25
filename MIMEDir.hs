@@ -24,11 +24,37 @@ getSpimUID dir = snd $ head (dir!spimUIDProp)
 
 addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
 addWParams name params value dir = case Map.lookup name dir of
-                              Just oldVal -> Map.insert name ((params, value):oldVal) dir
-                              Nothing -> Map.insert name [(params, value)] dir
+                                     Just oldVal -> Map.insert name ((params, value):oldVal) dir
+                                     Nothing -> Map.insert name [(params, value)] dir
 
 add :: PropName -> PropValue -> MIMEDir -> MIMEDir
 add name value = addWParams name Map.empty value 
+
+appendValue :: PropName -> PropValue -> MIMEDir -> MIMEDir
+appendValue name val dir = case getFirstParamsAndValue name dir of
+                             Nothing -> add name val dir
+                             Just (p, oldVal) -> Map.insert name [(p, oldVal ++ "," ++ val)] dir
+
+
+getAllValues :: PropName -> MIMEDir -> Maybe [PropValue]
+getAllValues name dir = case Map.lookup name dir of
+                          Nothing -> Nothing
+                          Just val -> Just (map snd val)
+
+getAllParamsAndValues :: PropName -> MIMEDir -> Maybe [(Parameters, PropValue)]
+getAllParamsAndValues = Map.lookup
+
+getFirst :: (a -> b -> Maybe [c]) -> a -> b -> Maybe c
+getFirst f x y = case f x y of
+                   Nothing -> Nothing
+                   Just l -> Just (head l)
+
+getFirstValue :: PropName -> MIMEDir -> Maybe PropValue
+getFirstValue = getFirst getAllValues 
+
+getFirstParamsAndValue :: PropName -> MIMEDir -> Maybe (Parameters, PropValue)
+getFirstParamsAndValue = getFirst getAllParamsAndValues
+                                    
 
 propValueToList :: PropValue -> [String]
 propValueToList = splitList ','
