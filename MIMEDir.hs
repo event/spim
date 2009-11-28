@@ -20,7 +20,7 @@ data ContentLine = ContentLine {name :: PropName
 spimUIDProp = "X-SpimUID"
 
 getSpimUID :: MIMEDir -> PropValue
-getSpimUID dir = snd $ head (dir!spimUIDProp)
+getSpimUID dir = Mb.fromJust . getFirstValue spimUIDProp
 
 addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
 addWParams name params value dir = case Map.lookup name dir of
