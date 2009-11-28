@@ -10,9 +10,10 @@ type ParamValue = String
 type PropValue = String
 type Parameters = Map.Map ParamName ParamValue
 
+type MIMEDirContents = Map.Map PropName Either [(Parameters, PropValue)] MIMEDir
+
 data MIMEDir = MIMEDir {kind :: String
-                       , contents :: Map.Map PropName 
-                                     Either [(Parameters, PropValue)] MIMEDir}
+                       , contents :: MIMEDirContents}
 
 data ContentLine = ContentLine {name :: PropName
                                 , parameters :: Parameters
@@ -24,9 +25,14 @@ getSpimUID :: MIMEDir -> PropValue
 getSpimUID dir = Mb.fromJust . getFirstValue spimUIDProp
 
 addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
-addWParams name params value dir = case Map.lookup name dir of
-                                     Just oldVal -> Map.insert name ((params, value):oldVal) dir
-                                     Nothing -> Map.insert name [(params, value)] dir
+addWParams name params value dir = 
+    let oldContent = contents dir
+        newContent = case Map.lookup name oldContent of
+                       Just oldVal -> Map.insert name 
+                                      Left (((params, value):oldVal)) oldContent
+                       Nothing -> Map.insert name (Left [(params, value)]) oldContent
+    in MIMEDir (kind dir) newContent
+                                     
 
 add :: PropName -> PropValue -> MIMEDir -> MIMEDir
 add name value = addWParams name Map.empty value 
@@ -40,10 +46,14 @@ appendValue name val dir = case getFirstParamsAndValue name dir of
 getAllValues :: PropName -> MIMEDir -> Maybe [PropValue]
 getAllValues name dir = case Map.lookup name dir of
                           Nothing -> Nothing
-                          Just val -> Just (map snd val)
+                          Just Left val -> Just (map snd val)
+                          Just Right _ -> Nothing
 
 getAllParamsAndValues :: PropName -> MIMEDir -> Maybe [(Parameters, PropValue)]
-getAllParamsAndValues = Map.lookup
+getAllParamsAndValues name dir = case Map.lookup name dir of
+                                   Nothing -> Nothing
+                                   Just Left val -> Just val
+                                   Just Right _ -> Nothing
 
 getFirst :: (a -> b -> Maybe [c]) -> a -> b -> Maybe c
 getFirst f x y = case f x y of
@@ -118,6 +128,7 @@ unfoldMIMEDir str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str
                       = unfoldMIMEDir (drop 3 str)
                   | otherwise = (head str) : unfoldMIMEDir (tail str)
 
+-- TODO: these functions below should be modified to support nested MIME-Dirs
 insertCl2MIMEDir :: ContentLine -> MIMEDir -> MIMEDir
 insertCl2MIMEDir cl = addWParams (name cl) (parameters cl) (value cl)
 
