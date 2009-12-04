@@ -189,14 +189,19 @@ contentLineFromString str = let cl = takeBeforeCRLF str in
 instance Eq ContentLine where
     cl1 == cl2 = (name cl1 == name cl2) && (parameters cl1 == parameters cl2) && (value cl1 == value cl2)
 
-instance Show ContentLine where 
-    showsPrec _ cl = \s -> name cl ++ (showParams . parameters) cl ++ ":" ++ value cl ++ "\r\n" ++ s
+instance Show ContentLine where
+    show cl = "ContentLine " ++ (show (name cl)) 
+              ++ " ( " ++ (show (parameters cl)) ++ " ) "
+              ++ (show (value cl))
+
+contentLineToString :: ContentLine -> String
+contentLineToString cl = name cl ++ (showParams . parameters) cl ++ ":" ++ value cl ++ "\r\n"
 
 mimeDirFromString :: String -> MIMEDir
 mimeDirFromString str = contentLines2MIMEDir $ readContentLines $ unfoldMIMEDir str
 
 mimeDirToString :: MIMEDir -> String
-mimeDirToString dir = foldMIMEDir (foldr shows "" (mimeDir2ContentLines dir))
+mimeDirToString dir = foldMIMEDir (concat $ map contentLineToString (mimeDir2ContentLines dir))
 
 isMIMEDirValid :: (PropName -> PropValue -> Parameters -> Bool) -> MIMEDir -> Bool
 isMIMEDirValid checkFunc dir = and (map (checkCL checkFunc) cls) where 
