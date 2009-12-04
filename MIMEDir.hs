@@ -3,7 +3,6 @@ module MIMEDir where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Mb
 import qualified Data.List as List
-import Data.Map ((!))
 
 type PropName = String
 type ParamName = String
@@ -11,7 +10,10 @@ type ParamValue = String
 type PropValue = String
 type Parameters = Map.Map ParamName ParamValue
 
-type MIMEDir = Map.Map PropName [(Parameters, PropValue)]
+type MIMEDirContents = Map.Map PropName (Either [(Parameters, PropValue)] MIMEDir)
+
+data MIMEDir = MIMEDir {kind :: String
+                       , contents :: MIMEDirContents}
 
 data ContentLine = ContentLine {name :: PropName
                                 , parameters :: Parameters
@@ -20,12 +22,20 @@ data ContentLine = ContentLine {name :: PropName
 spimUIDProp = "X-SpimUID"
 
 getSpimUID :: MIMEDir -> PropValue
-getSpimUID dir = Mb.fromJust . getFirstValue spimUIDProp
+getSpimUID = Mb.fromJust . getFirstValue spimUIDProp
 
 addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
-addWParams name params value dir = case Map.lookup name dir of
-                                     Just oldVal -> Map.insert name ((params, value):oldVal) dir
-                                     Nothing -> Map.insert name [(params, value)] dir
+addWParams name params value dir = 
+    let oldContent = contents dir
+        newContent = addContentWParams name params value oldContent
+    in MIMEDir (kind dir) newContent
+
+addContentWParams :: PropName -> Parameters ->  PropValue -> MIMEDirContents -> MIMEDirContents
+addContentWParams name params value content = 
+    case Map.lookup name content of
+      Just (Left oldVal) -> Map.insert name 
+                                    (Left ((params, value):oldVal)) content
+      Nothing -> Map.insert name (Left [(params, value)]) content
 
 add :: PropName -> PropValue -> MIMEDir -> MIMEDir
 add name value = addWParams name Map.empty value 
@@ -33,16 +43,23 @@ add name value = addWParams name Map.empty value
 appendValue :: PropName -> PropValue -> MIMEDir -> MIMEDir
 appendValue name val dir = case getFirstParamsAndValue name dir of
                              Nothing -> add name val dir
-                             Just (p, oldVal) -> Map.insert name [(p, oldVal ++ "," ++ val)] dir
+                             Just (p, oldVal) -> MIMEDir (kind dir) 
+                                                 (Map.insert name 
+                                                    (Left [(p, oldVal ++ "," ++ val)]) 
+                                                    (contents dir))
 
 
 getAllValues :: PropName -> MIMEDir -> Maybe [PropValue]
-getAllValues name dir = case Map.lookup name dir of
+getAllValues name dir = case Map.lookup name (contents dir) of
                           Nothing -> Nothing
-                          Just val -> Just (map snd val)
+                          Just (Left val) -> Just (map snd val)
+                          Just (Right _) -> Nothing
 
 getAllParamsAndValues :: PropName -> MIMEDir -> Maybe [(Parameters, PropValue)]
-getAllParamsAndValues = Map.lookup
+getAllParamsAndValues name dir = case Map.lookup name (contents dir) of
+                                   Nothing -> Nothing
+                                   Just (Left val) -> Just val
+                                   Just (Right _) -> Nothing
 
 getFirst :: (a -> b -> Maybe [c]) -> a -> b -> Maybe c
 getFirst f x y = case f x y of
@@ -117,16 +134,54 @@ unfoldMIMEDir str | List.isPrefixOf "\r\n\t" str || List.isPrefixOf "\r\n " str
                       = unfoldMIMEDir (drop 3 str)
                   | otherwise = (head str) : unfoldMIMEDir (tail str)
 
-insertCl2MIMEDir :: ContentLine -> MIMEDir -> MIMEDir
-insertCl2MIMEDir cl = addWParams (name cl) (parameters cl) (value cl)
+insertCls2MIMEDir :: [ContentLine] -> MIMEDirContents -> MIMEDirContents
+insertCls2MIMEDir [] dir = dir
+insertCls2MIMEDir lines dir | name (head lines) == "BEGIN" 
+                                = let (nested, rest) = splitBeginEnd lines
+                                      nestedDir = contentLines2MIMEDir nested 
+                                      newDir = Map.insert (getNestedDirKey dir) 
+                                                    (Right nestedDir) dir 
+                                  in insertCls2MIMEDir rest newDir
+                            | otherwise 
+                                = let cl:cls = lines in
+                                  insertCls2MIMEDir 
+                                      cls (addContentWParams 
+                                           (name cl) (parameters cl) (value cl) dir)
 
 contentLines2MIMEDir :: [ContentLine] -> MIMEDir
-contentLines2MIMEDir = foldr (insertCl2MIMEDir) Map.empty 
+contentLines2MIMEDir ((ContentLine "BEGIN" _ kind):cls) =
+    let content = init cls in
+    MIMEDir kind (contentLines2MIMEDirContent content)
+contentLines2MIMEDir _ = error "MIME-DIR must start with BEGIN:<TYPE>!"
+
+splitBeginEnd :: [ContentLine] -> ([ContentLine], [ContentLine])
+splitBeginEnd = error "Not yet!"
+
+getNestedDirKey :: MIMEDirContents -> PropName
+getNestedDirKey = error "Not yet!"
+
+contentLines2MIMEDirContent :: [ContentLine] -> MIMEDirContents
+contentLines2MIMEDirContent cls = insertCls2MIMEDir cls Map.empty
 
 mimeDir2ContentLines :: MIMEDir -> [ContentLine]
-mimeDir2ContentLines = Map.foldWithKey (\k v res -> 
-                       (foldr (\(prop, val) cls_per_name 
-                               -> (ContentLine k prop val) : cls_per_name) [] v) ++ res) []
+mimeDir2ContentLines dir = 
+    let k = kind dir in 
+    [ContentLine "BEGIN" Map.empty k] 
+     ++ (mimeDirContent2Cls (contents dir))
+     ++ [ContentLine "END" Map.empty k] 
+
+mimeDirContent2Cls :: MIMEDirContents -> [ContentLine]
+mimeDirContent2Cls = 
+    Map.foldWithKey (\k v res -> 
+                         let cls = case v of
+                                     Left propAndVal -> dirContentEntry2Cls k propAndVal
+                                     Right nestedDir -> mimeDir2ContentLines nestedDir
+                         in cls ++ res) []
+
+dirContentEntry2Cls :: PropName -> [(Parameters, PropValue)] -> [ContentLine]
+dirContentEntry2Cls name = 
+    foldr (\(prop, val) cls_per_name 
+               -> (ContentLine name prop val) : cls_per_name) []
 
 instance Read ContentLine where
     readsPrec _ str = let cl = takeBeforeCRLF str in

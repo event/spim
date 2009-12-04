@@ -39,25 +39,15 @@ vcTests = test [
           , "readCLs2" ~: readContentLines "begin:vcard\r\nend:vcard\r\n"
                            @?= [ContentLine "begin" Map.empty "vcard"
                                , ContentLine "end" Map.empty "vcard"] 
-          , "insertCl2MIMEDir" ~: insertCl2MIMEDir (ContentLine "begin" Map.empty "vcard") 
-                                                   Map.empty
-                                   @?= Map.fromList [("begin", [(Map.empty, "vcard")])]
-          , "insertCl2MIMEDir2" ~: insertCl2MIMEDir (ContentLine "end" Map.empty "vcard")
-                                    (insertCl2MIMEDir (ContentLine "begin" Map.empty "vcard") 
-                                                      Map.empty)  
-                                    @?= Map.fromList [("begin", [(Map.empty, "vcard")])
-                                                     , ("end", [(Map.empty, "vcard")])] 
-          , "cls2vc" ~: contentLines2MIMEDir [ContentLine "begin" Map.empty "vcard"
-                                             , ContentLine "end" Map.empty "vcard"]
-                             @?= Map.fromList [("begin", [(Map.empty, "vcard")])
-                                              , ("end", [(Map.empty, "vcard")])] 
-          , "happy path" ~: mimeDirFromString "begin:vcard\r\nend:vcard"
-                             @?= Map.fromList [("begin", [(Map.empty, "vcard")])
-                                              , ("end", [(Map.empty, "vcard")])] 
-          , "reverse happy path" ~: mimeDirToString 
-                                     (Map.fromList [("begin", [(Map.empty, "vcard")])
-                                                   , ("end", [(Map.empty, "vcard")])])
-                                     @?= "begin:vcard\r\nend:vcard\r\n"
+          , "happy path" ~: mimeDirToString (mimeDirFromString "BEGIN:VCARD\r\nEND:VCARD")
+                             @?= mimeDirToString (MIMEDir "VCARD" Map.empty)
+          , "reverse happy path" ~: mimeDirToString MIMEDir 
+                                     {kind = "INDEX", 
+                                      contents = 
+                                          (Map.fromList 
+                                                  [("1234321", Left [(Map.empty, "PP")])
+                                                   , ("FIELD", Left [(Map.empty, "TEL")])])}
+                                     @?= "BEGIN:INDEX\r\n1234321:PP\r\nFIELD:TEL\r\nEND:INDEX\r\n"
          ]
 
 
