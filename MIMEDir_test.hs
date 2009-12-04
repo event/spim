@@ -6,23 +6,23 @@ import MIMEDir
 
 clTests = test 
         -- positive tests
-        ["happy path" ~: read "name;param=pval1,pval2:value" 
+        ["happy path" ~: readContentLine "name;param=pval1,pval2:value" 
                           @?= ContentLine "name" 
                                   (Map.singleton "param" "pval1,pval2") 
                                   "value"
-        , "empty value" ~: read "name;param=pval:" 
+        , "empty value" ~: readContentLine "name;param=pval:" 
                             @?= ContentLine "name" 
                                     (Map.singleton "param" "pval")
                                     ""
-        , "empty params" ~: read "name:value" 
+        , "empty params" ~: readContentLine "name:value" 
                              @?= ContentLine "name"
                                      (Map.empty)
                                      "value"
-        , "empty param value" ~: read "name;param=:value"
+        , "empty param value" ~: readContentLine "name;param=:value"
                                   @?= ContentLine "name"
                                           (Map.singleton "param" "")
                                           "value"
-        , "empty name" ~: read ":value" @?= ContentLine "" (Map.empty) "value"
+        , "empty name" ~: readContentLine ":value" @?= ContentLine "" (Map.empty) "value"
         -- negative tests
         , "no colon" ~: do res <- catch (readIO "sometext") 
                                   (\e -> do return "")
@@ -32,8 +32,8 @@ vcTests = test [
            "takeBeforeCRLF" ~: takeBeforeCRLF "text\r\nothertext" @?= "text"
           , "readCL" ~: readContentLine "begin:vcard" 
                          @?= ContentLine "begin" Map.empty "vcard"
-          , "reads" ~: reads "begin:vcard\r\ntherest" 
-                        @?= [(ContentLine "begin" Map.empty "vcard", "therest")]
+          , "reads" ~:  contentLineFromString "begin:vcard\r\ntherest" 
+                        @?= (ContentLine "begin" Map.empty "vcard", "therest")
           , "readCLs1" ~: readContentLines "begin:vcard\r\n"
                            @?= [ContentLine "begin" Map.empty "vcard"] 
           , "readCLs2" ~: readContentLines "begin:vcard\r\nend:vcard\r\n"

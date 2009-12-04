@@ -115,9 +115,8 @@ takeBeforeCRLF (hchar : strtail) = hchar : takeBeforeCRLF strtail
 
 readContentLines :: String -> [ContentLine] 
 readContentLines "" = []
-readContentLines str = case reads str :: [(ContentLine, String)] of 
-                         [(cl, rest)] -> cl : readContentLines rest
-                         _ -> error ("Failed to parse line '" ++ str ++ "'")
+readContentLines str = let (cl, rest) = contentLineFromString str in 
+                         cl : readContentLines rest
 
 foldMIMEDir' :: String -> Int -> String
 foldMIMEDir' "" _ = ""
@@ -183,9 +182,9 @@ dirContentEntry2Cls name =
     foldr (\(prop, val) cls_per_name 
                -> (ContentLine name prop val) : cls_per_name) []
 
-instance Read ContentLine where
-    readsPrec _ str = let cl = takeBeforeCRLF str in
-                      [(readContentLine cl, drop ((length cl) + 2) str)]
+contentLineFromString :: String -> (ContentLine, String)
+contentLineFromString str = let cl = takeBeforeCRLF str in
+                            (readContentLine cl, drop ((length cl) + 2) str)
 
 instance Eq ContentLine where
     cl1 == cl2 = (name cl1 == name cl2) && (parameters cl1 == parameters cl2) && (value cl1 == value cl2)
