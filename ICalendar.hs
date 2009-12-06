@@ -1,4 +1,4 @@
-module VCard where
+module ICal where
 
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
@@ -6,20 +6,20 @@ import Data.Map ((!))
 import Data.List as List
 
 
-type VCard = MD.MIMEDir
+type ICal = MD.MIMEDir
 
-toVCard :: String -> Maybe VCard
+toVCard :: String -> Maybe ICal
 toVCard s = let vc = MD.mimeDirFromString s in
-            if checkVCard vc then
+            if checkICal vc then
                 Just vc
             else
                 Nothing
 
-checkVCard :: VCard -> Bool
-checkVCard vc = MD.kind vc == "VCARD" && MD.isMIMEDirValid vcardCLCheck vc
+checkICal :: ICal -> Bool
+checkICal ic = MD.kind ic == "VCALENDAR" && MD.isMIMEDirValid icalCLCheck ic
 
-vcardCLCheck :: MD.PropName -> MD.PropValue -> MD.Parameters -> Bool
-vcardCLCheck name value params | Map.member name stdProps 
+icalCLCheck :: MD.PropName -> MD.PropValue -> MD.Parameters -> Bool
+icalCLCheck name value params | Map.member name stdProps 
                                    = (fst (stdProps!name)) value && (snd (stdProps!name)) params
                                | otherwise = checkUnsupp name
 
