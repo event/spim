@@ -12,7 +12,7 @@ import qualified Data.Set as Set
 default (Int)
 
 
-indexedFields = Map.fromList [("VCARD", ["EMAIL", "TEL"]), ("VCALENDAR", [])]
+indexedFields = Map.fromList [("VCARD", ["EMAIL", "TEL"]), ("VCALENDAR", ["CATEGORIES"])]
 badRepoEC =  1
 badObjectEC = 2
 
