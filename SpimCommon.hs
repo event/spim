@@ -7,17 +7,18 @@ import qualified SpimIndex as SI
 import qualified Maybe as Mb
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 default (Int)
 
 
-indexedFields = ["EMAIL", "TEL"]
+indexedFields = Map.fromList [("VCARD", ["EMAIL", "TEL"]), ("VCALENDAR", [])]
 badRepoEC =  1
 badObjectEC = 2
 
 
 addToRepo :: [MD.MIMEDir] -> IO ()
-addToRepo piObjects = do indices <- loadIndices 
+addToRepo piObjects = do indices <- loadIndicesByKinds (map MD.kind piObjects) 
                          let updIndices = updateIndices indices piObjects 
                          saveMimeDirs piObjects
                          saveIndices updIndices
@@ -86,15 +87,22 @@ saveIndex idx = do let fname = "indices/" ++ (SI.getIndexField idx) ++ ".idx"
                    Cmd.system ("git add " ++ fname) 
                    return ()
 
-loadIndices :: IO [SI.SpimIndex]
-loadIndices = do
-  loadIndices indexedFields
-  where
-    loadIndices [] = do return []
-    loadIndices (fld:fields) = do
-                head <- loadIndex fld
-                tail <- loadIndices fields
-                return (head : tail)
+loadIndicesByKinds :: [String] -> IO [SI.SpimIndex]
+loadIndicesByKinds kinds = do 
+  loadIndicesByName $ Set.elems 
+                        (Set.fold 
+                                (\k res -> case Map.lookup k indexedFields of
+                                             Just l -> res `Set.union` (Set.fromList l)
+                                             Nothing -> res
+                                ) Set.empty (Set.fromList kinds))
+
+
+loadIndicesByName :: [String] -> IO [SI.SpimIndex]
+loadIndicesByName [] = do return []
+loadIndicesByName (fld:fields) = do
+  head <- loadIndex fld
+  tail <- loadIndicesByName fields
+  return (head : tail)
 
 loadIndex :: String -> IO SI.SpimIndex
 loadIndex fld = do 
