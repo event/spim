@@ -4,9 +4,12 @@ import IO
 import qualified System.Environment as SysEnv
 import qualified System.Directory as SysDir
 import qualified System.Exit as Exit
+import qualified System.Locale as Locale
 import qualified SpimCommon as Spim
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
+import qualified Data.Time.Format as TimeFormat
+import Data.Time.LocalTime (LocalTime)
 
 eventTypes = Map.fromList [("TIME", processTimeUpdate), ("GEO", processGeoUpdate)]
 
@@ -25,7 +28,19 @@ main = do repoDir:eventType:params <- SysEnv.getArgs
                       do SysDir.setCurrentDirectory oldDir
 
 processTimeUpdate :: [String] -> IO ()
-processTimeUpdate = error "not yet"
+processTimeUpdate (localTs:[]) = do
+  let newTime = case TimeFormat.parseTime Locale.defaultTimeLocale "%s" localTs of
+                  Just t -> t
+                  Nothing -> error "Failed to parse time"
+  alarmIdx:[] <- Spim.loadIndicesByKinds ["VALARM"]
+  let triggeredObjects = findTriggered newTime alarmIdx
+  returnObjects triggeredObjects
+
+returnObjects :: [String] -> IO ()
+returnObjects = putStr . show   -- show triggeredObjects here somehow
+
+findTriggered :: LocalTime -> MD.MIMEDir -> [String]
+findTriggered time alarmIdx = error "not yet"
 
 processGeoUpdate :: [String] -> IO ()
 processGeoUpdate =  error "not yet"
