@@ -19,10 +19,27 @@ data ContentLine = ContentLine {name :: PropName
                                 , parameters :: Parameters
                                 , value :: PropValue}
 
+dateFormat = "%Y%m%dT%H%M%S"
+
 spimUIDProp = "X-SpimUID"
 
 getSpimUID :: MIMEDir -> PropValue
 getSpimUID = Mb.fromJust . getFirstValue spimUIDProp
+
+filterValuesWProps :: (PropName -> Parameters -> Bool) -> MIMEDir -> [PropValue]
+filterValuesWProps f dir = filterContentsWProps f (contents dir) 
+
+filterContentsWProps :: (PropName -> Parameters -> Bool) -> MIMEDirContents 
+                     -> [PropValue]
+filterContentsWProps f contents = 
+    Map.foldWithKey 
+           (\k v res -> case v of 
+                          Left list -> map snd (filter (\(params, _) -> f k params) list)
+                          Right nestedDir -> filterValuesWProps f nestedDir) 
+           [] contents
+
+filterValues :: (PropName -> Bool) -> MIMEDir -> [PropValue]
+filterValues f = filterValuesWProps (\pN props -> f pN) 
 
 addWParams :: PropName -> Parameters ->  PropValue -> MIMEDir -> MIMEDir
 addWParams name params value dir = 
