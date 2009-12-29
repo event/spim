@@ -42,6 +42,9 @@ main = do repoDir:eventType:params <- SysEnv.getArgs
 -}
 secDiffToTrigger = (-6, 6) 
 
+--                       longMin    longMax     latMin     latMax
+degreeDiffToTrigger = ((-0.000001, 0.000001), (-0.000001, 0.000001))
+
 processTimeUpdate :: [String] -> IO ()
 processTimeUpdate (localTs:[]) = do
   let newTime = case TimeFormat.parseTime Locale.defaultTimeLocale MD.dateFormat localTs of
@@ -49,14 +52,14 @@ processTimeUpdate (localTs:[]) = do
                   Nothing -> error "Failed to parse time"
   alarmIdx:[] <- Spim.loadIndicesByKinds ["VALARM"]
   curTZ <- Time.getCurrentTimeZone
-  let triggeredObjects = findTriggered newTime secDiffToTrigger curTZ alarmIdx
+  let triggeredObjects = findTimeTriggeredObjects newTime secDiffToTrigger curTZ alarmIdx
   returnObjects triggeredObjects
 
 returnObjects :: [String] -> IO ()
 returnObjects = putStr . show
 
-findTriggered :: LocalTime -> (Int, Int) -> Time.TimeZone -> MD.MIMEDir -> [String]
-findTriggered now (lowBound, highBound) tz 
+findTimeTriggeredObjects :: LocalTime -> (Int, Int) -> Time.TimeZone -> MD.MIMEDir -> [String]
+findTimeTriggeredObjects now (lowBound, highBound) tz 
     = MD.filterValuesWProps (\ pN props -> isTimeWithinBounds (incTime now lowBound) 
                              (incTime now highBound) tz pN)
 
@@ -83,4 +86,31 @@ getLocalFromUTC strTimeUTC tz
         Nothing -> error ("time string '" ++ strTimeUTC ++ "' is not a valid iCal time")
 
 processGeoUpdate :: [String] -> IO ()
-processGeoUpdate =  error "not yet"
+processGeoUpdate (lo:la:[]) = do
+  let longitude = read lo
+      latitude = read la
+  alarmIdx:[] <- Spim.loadIndicesByKinds ["X-SPIM-VGEOALARM"]
+  let triggeredObjects = findGeoTriggeredObjects (longitude, latitude) alarmIdx
+  returnObjects triggeredObjects
+
+findGeoTriggeredObjects :: (Float, Float) -> MD.MIMEDir -> [String]
+findGeoTriggeredObjects (long, lat) idx 
+    = let longMin = long + ((fst . fst) degreeDiffToTrigger) 
+          longMax = long + ((snd . fst) degreeDiffToTrigger)
+          latMin = lat + ((fst . snd) degreeDiffToTrigger)
+          latMax = lat + ((snd . snd) degreeDiffToTrigger)
+      in
+        MD.filterValues 
+              (\ pN -> isGeoWithinBounds (longMin, longMax) (latMin, latMax) (toLongLat pN)) idx
+
+isGeoWithinBounds :: (Float, Float) -> (Float, Float) -> (Float, Float) -> Bool
+isGeoWithinBounds longBounds latBounds (long, lat) 
+    = long `between` longBounds && lat `between` latBounds 
+      where between :: (Ord a) => a -> (a, a) -> Bool
+            between v (low, high) = v > low && v < high
+
+
+toLongLat :: String -> (Float, Float)
+toLongLat s = let (strLong, 'x':strLat) = break (== 'x') s in
+              (read strLong, read strLat)
+              
