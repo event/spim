@@ -26,6 +26,15 @@ spimUIDProp = "X-SpimUID"
 getSpimUID :: MIMEDir -> PropValue
 getSpimUID = Mb.fromJust . getFirstValue spimUIDProp
 
+nestedKinds :: MIMEDir -> [String]
+nestedKinds (MIMEDir k c) = k:(contentsKinds c)
+
+contentsKinds :: MIMEDirContents -> [String]
+contentsKinds c = concat (map 
+                          (\ v -> case v of 
+                                   Left _ -> []
+                                   Right dir -> nestedKinds dir) (Map.elems c))
+
 filterValuesWProps :: (PropName -> Parameters -> Bool) -> MIMEDir -> [PropValue]
 filterValuesWProps f dir = filterContentsWProps f (contents dir) 
 
