@@ -18,7 +18,7 @@ badObjectEC = 2
 
 
 addToRepo :: [MD.MIMEDir] -> IO ()
-addToRepo piObjects = do indices <- loadIndicesByKinds (map MD.kind piObjects) 
+addToRepo piObjects = do indices <- loadIndicesByKinds (concat (map MD.nestedKinds piObjects))
                          let updIndices = updateIndices indices piObjects 
                          saveMimeDirs piObjects
                          saveIndices updIndices
