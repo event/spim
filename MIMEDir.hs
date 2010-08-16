@@ -33,7 +33,9 @@ contentsKinds :: MIMEDirContents -> [String]
 contentsKinds c = concat (map 
                           (\ v -> case v of 
                                    Left _ -> []
-                                   Right dir -> nestedKinds dir) (Map.elems c))
+                                   Right dir -> nestedKinds dir) {- mutual recursion could be 
+changed here to plain `kind dir` as mime-dirs has 2 level nesting in practice -}
+                          (Map.elems c))
 
 filterValuesWProps :: (PropName -> Parameters -> Bool) -> MIMEDir -> [PropValue]
 filterValuesWProps f dir = filterContentsWProps f (contents dir) 

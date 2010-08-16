@@ -8,11 +8,67 @@ import qualified Maybe as Mb
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import qualified Date.Time.LocalTime as Time
+import Data.Map ((!))
 
 default (Int)
 
 
 indexedFields = Map.fromList [("VCARD", ["EMAIL", "TEL"]), ("VCALENDAR", ["CATEGORIES"])]
+indexUpdateInfo = Map.fromList [("VCARD" 
+                                , Map.fromList [("EMAIL", simpleUpdate)
+                                               , ("TEL", simpleUpdate)])
+                               ,("VALARM", Map.singleton "ALARM" alarmUpdate)]
+
+lookupIdxUpdFunc :: String -> String 
+                 -> (SI.SpimIndex -> MD.MIMEDir -> Maybe MD.MIMEDir -> SI.SpimIndex)
+lookupIdxUpdFunc fieldName dirKind = 
+    case Map.lookup dirKind indexUpdateInfo of
+      Nothing -> error "MIME-DIR type '" ++ dirKind ++ "' is not supported!"
+      Just map -> case Map.lookup fieldName map of
+                   Nothing -> noUpdate
+                   Just func -> func
+-- returns index unchanged
+noUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
+noUpdate index _ _ = index
+
+{- 1. get field name from index
+   2. get value of the field from mime-dir
+   3. update index with value (from step 2) and mime-dir uid
+-}
+simpleUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
+simpleUpdate idx dir _ = 
+    case MD.getAllValues (SI.getIndexField idx) (MD.contents dir) of
+      Nothing -> idx
+      Just values -> SI.addValueToIndex values (MD.getSpimUID dir) idx
+
+{- mostly same as simpleUpdate except that value is expected to be of date-time type 
+     (acc. to RFC 5545) and is transformed to UTC form (with 'Z' char at the end)
+-}
+alarmUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
+alarmUpdate idx dir parent = 
+    case MD.getAllParamsAndValues (SI.getIndexField idx) (MD.contents dir) of
+      Nothing -> idx
+      Just paramsAndValues -> 
+          SI.addValueToIndex (map 
+                              (toUTC  parent)
+                              paramsAndValues
+                             )
+                (MD.getSpimUID dir) idx
+
+toUTC ::  MD.MIMEDir -> (Parameters, PropValue) -> String
+toUTC  parent (tzParams, time) | "Z" `isSuffixOf` time = time -- UTC already
+                               -- convert this one to UTC
+                               | Map.member "TZID" tzParams = convertTZ2UTC parent (tzParams!"TZID") time
+                               -- keep the local time (acc. to RFC-5545-3.3.5#1)
+                               | otherwise = time 
+     
+convertTZ2UTC :: MD.MIMEDir -> ParamValue -> PropValue -> String
+convertTZ2UTC parent tzName time = convertTime ((getTZDefinitions parent)!tzName) time 
+    where
+      convertTime tz time = nothing
+      getTZDefinitions md = nothing
+
 badRepoEC =  1
 badObjectEC = 2
 
@@ -49,6 +105,26 @@ updateIndices indices mimeDirs =
     let indexMap = Map.fromList (map (\idx -> (SI.getIndexField idx, idx)) indices) in
     Map.elems (updateIdxsWDirs indexMap mimeDirs) 
 
+updateIndices' :: [SI.SpimIndex] -> [MD.MIMEDir] -> [SI.SpimIndex]
+updateIndices' [] _ = []
+updateIndices' indices [] = indices
+updateIndices' (idx:indices) dirs = (updateIndex idx dirs) : (updateIndices' indices dirs) 
+
+updateIndex :: SI.SpimIndex -> [MD.MIMEDir] -> SI.SpimIndex
+updateIndex idx [] = idx
+updateIndex idx (dir:dirs) = 
+    let newIdx = updateIndex1 idx dir in
+    updateIndex newIdx dirs
+
+updateIndex1 :: SI.SpimIndex -> MD.MIMEDir -> SI.SpimIndex
+updateIndex1 idx dir = 
+    let subdirs = MD.getSubDirs dir 
+        indexField = SI.getIndexField idx
+        afterFirstUpdate = (lookupIdxUpdFunc indexField (MD.kind dir)) idx dir dir 
+    in
+      foldl (\ i d -> (lookupIdxUpdFunc indexField (MD.kind d)) i d dir) 
+            afterFirstUpdate subdirs
+
 updateIdxsWDirs :: Map.Map String SI.SpimIndex -> [MD.MIMEDir] -> Map.Map String SI.SpimIndex
 updateIdxsWDirs indexMap [] = indexMap
 updateIdxsWDirs indexMap (dir:dirs) = updateIdxsWDirs (updateProps indexMap dir) dirs
@@ -78,14 +154,9 @@ saveMimeDir dir = do
 saveIndices :: [SI.SpimIndex] -> IO ()
 saveIndices [] = do return ()
 saveIndices (idx:idxs) = do
-  saveIndex idx
+  SI.saveIndex idx
   saveIndices idxs
 
-saveIndex :: SI.SpimIndex -> IO ()
-saveIndex idx = do let fname = "indices/" ++ (SI.getIndexField idx) ++ ".idx"
-                   writeFile fname (MD.mimeDirToString idx)
-                   Cmd.system ("git add " ++ fname) 
-                   return ()
 
 loadIndicesByKinds :: [String] -> IO [SI.SpimIndex]
 loadIndicesByKinds kinds = do 
@@ -100,15 +171,9 @@ loadIndicesByKinds kinds = do
 loadIndicesByName :: [String] -> IO [SI.SpimIndex]
 loadIndicesByName [] = do return []
 loadIndicesByName (fld:fields) = do
-  head <- loadIndex fld
+  head <- SI.loadIndex fld
   tail <- loadIndicesByName fields
   return (head : tail)
-
-loadIndex :: String -> IO SI.SpimIndex
-loadIndex fld = do 
-  content <- readFile ("indices/" ++ fld ++ ".idx") 
-                `catch` \e -> do return ("BEGIN:INDEX\r\nFIELD:" ++ fld ++ "\r\nEND:INDEX\r\n")
-  return (Mb.fromJust $ SI.toSpimIndex content)
 
 -- TBI
 isSpimRepo :: FilePath -> IO Bool
