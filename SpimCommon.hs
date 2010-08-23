@@ -42,19 +42,33 @@ simpleUpdate idx dir _ =
       Nothing -> idx
       Just values -> SI.addValueToIndex values (MD.getSpimUID dir) idx
 
-{- mostly same as simpleUpdate except that value is expected to be of date-time type 
-     (acc. to RFC 5545) and is transformed to UTC form (with 'Z' char at the end)
+{-  Parses the VALARM object and updates index with ALL the occurences of the alarm either in 
+      UTC (UTC and time-zone definitions) or local time (acc. to RFC 5545). UTC times are suffixed with 'Z'
 -}
 alarmUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
 alarmUpdate idx dir parent = 
-    case MD.getAllParamsAndValues (SI.getIndexField idx) (MD.contents dir) of
-      Nothing -> idx
-      Just paramsAndValues -> 
-          SI.addValueToIndex (map 
-                              (toUTC  parent)
-                              paramsAndValues
-                             )
-                (MD.getSpimUID dir) idx
+    let repDur = (MD.getFirstParamsAndValue "REPEAT" dir, MD.getFirstParamsAndValue "DURATION" dir) in 
+    case MD.getFirstParamsAndValue "TRIGGER" dir of
+      Nothing -> error "VALARM doesn't contain TRIGGER field"
+      Just ([params], val) -> 
+          case params of 
+            [] -> SI.addValueToIndex (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
+            [param] -> case Map.lookup "VALUE" param of
+                        Just "DATE-TIME" -> SI.addValueToIndex (calcTimesAbs val repDur) (MD.getSpimUID parent) idx
+                        _ -> case Map.lookup "RELATED" param of
+                              Just "END" -> SI.addValueToIndex 
+                                             (calcTimesRelToEnd val repDur parent) (MD.getSpimUID parent) idx
+                              _ - SI.addValueToIndex 
+                                    (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
+
+calcTimesAbs :: String -> (String, String) -> [String]
+calcTimesAbs val (repeat, duration) = nothing
+
+calcTimesRelToStart :: String -> (String, String) -> MD.MIMEDir -> [String]
+calcTimesRelToStart val (repeat, duration) parent = nothing
+
+calcTimesRelToEnd :: String -> (String, String) -> MD.MIMEDir -> [String]
+calcTimesRelToEnd val (repeat, duration) parent = nothing
 
 toUTC ::  MD.MIMEDir -> (Parameters, PropValue) -> String
 toUTC  parent (tzParams, time) | "Z" `isSuffixOf` time = time -- UTC already
