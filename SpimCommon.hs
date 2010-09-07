@@ -9,6 +9,8 @@ import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Date.Time.LocalTime as Time
+import qualified Date.Time.Clock as Clock
+import qualified Data.Time.Format as TimeFormat
 import Data.Map ((!))
 
 default (Int)
@@ -62,14 +64,40 @@ alarmUpdate idx dir parent =
                                     (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
 
 calcTimesAbs :: String -> (String, String) -> [String]
-calcTimesAbs val (repeat, duration) = nothing
+calcTimesAbs val (repCount, duration) = 
+    map utc2string (createTimeList (read repCount) (duration2DiffTime duration) (string2utc val))
 
 calcTimesRelToStart :: String -> (String, String) -> MD.MIMEDir -> [String]
-calcTimesRelToStart val (repeat, duration) parent = nothing
+calcTimesRelToStart val (repCount, duration) parent = nothing
 
 calcTimesRelToEnd :: String -> (String, String) -> MD.MIMEDir -> [String]
-calcTimesRelToEnd val (repeat, duration) parent = nothing
+calcTimesRelToEnd val (repCount, duration) parent = nothing
 
+createTimeList :: Int -> Int -> LocalTime -> [UTCTime] 
+createTimeList rep diff time -> [time : createTimeList (rep - 1) (incTime time diff)]
+
+utc2string :: UTCTime -> String
+utc2string time = (TimeFormat.formatTime Locale.defaultTimeLocale MD.dateFormat time) ++ "Z"
+
+string2utc :: String -> UTCTime
+string2utc time = case TimeFormat.parseTime Locale.defaultTimeLocale MD.dateFormat time of
+                    Just t -> t
+                    Nothing -> error "Failed to parse time"
+
+
+-- FIXME: this one is copied from InjectEvent.hs. Should be externalized 
+incTime :: LocalTime -> Int -> LocalTime
+incTime base diff 
+    = let resFrac = ((Time.timeOfDayToDayFraction . Time.localTimeOfDay) base) 
+                    + ((toInteger diff) % secInDay) where secInDay = 24*60*60
+          d = Time.localDay base
+      in
+        if resFrac < 1 then
+            Time.LocalTime d (Time.dayFractionToTimeOfDay resFrac)
+        else
+            Time.LocalTime (Cal.addDays 1 d) (Time.dayFractionToTimeOfDay (resFrac - 1))
+
+-- toUTC and convertTZ2UTC are posibly unneeded
 toUTC ::  MD.MIMEDir -> (Parameters, PropValue) -> String
 toUTC  parent (tzParams, time) | "Z" `isSuffixOf` time = time -- UTC already
                                -- convert this one to UTC
