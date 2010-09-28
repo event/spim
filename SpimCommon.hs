@@ -3,15 +3,20 @@ module SpimCommon where
 import IO
 import qualified System.Directory as SysDir
 import qualified System.Cmd as Cmd
+import qualified System.Locale as Locale
 import qualified SpimIndex as SI
 import qualified Maybe as Mb
 import qualified MIMEDir as MD
 import qualified Data.Map as Map
+import qualified Data.List as List
 import qualified Data.Set as Set
-import qualified Date.Time.LocalTime as Time
-import qualified Date.Time.Clock as Clock
+import qualified Data.Time.LocalTime as Time
+import qualified Data.Time.Clock as Clock
 import qualified Data.Time.Format as TimeFormat
+import qualified Data.Time.Calendar as Cal
+
 import Data.Map ((!))
+import Data.Ratio ((%))
 
 default (Int)
 
@@ -23,10 +28,10 @@ indexUpdateInfo = Map.fromList [("VCARD"
                                ,("VALARM", Map.singleton "ALARM" alarmUpdate)]
 
 lookupIdxUpdFunc :: String -> String 
-                 -> (SI.SpimIndex -> MD.MIMEDir -> Maybe MD.MIMEDir -> SI.SpimIndex)
+                 -> (SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex)
 lookupIdxUpdFunc fieldName dirKind = 
     case Map.lookup dirKind indexUpdateInfo of
-      Nothing -> error "MIME-DIR type '" ++ dirKind ++ "' is not supported!"
+      Nothing -> error ("MIME-DIR type '" ++ dirKind ++ "' is not supported!")
       Just map -> case Map.lookup fieldName map of
                    Nothing -> noUpdate
                    Just func -> func
@@ -40,7 +45,7 @@ noUpdate index _ _ = index
 -}
 simpleUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
 simpleUpdate idx dir _ = 
-    case MD.getAllValues (SI.getIndexField idx) (MD.contents dir) of
+    case MD.getAllValues (SI.getIndexField idx) dir of
       Nothing -> idx
       Just values -> SI.addValueToIndex values (MD.getSpimUID dir) idx
 
@@ -48,64 +53,75 @@ simpleUpdate idx dir _ =
       UTC (UTC and time-zone definitions) or local time (acc. to RFC 5545). UTC times are suffixed with 'Z'
 -}
 alarmUpdate :: SI.SpimIndex -> MD.MIMEDir -> MD.MIMEDir -> SI.SpimIndex
-alarmUpdate idx dir parent = 
-    let repDur = (MD.getFirstParamsAndValue "REPEAT" dir, MD.getFirstParamsAndValue "DURATION" dir) in 
+alarmUpdate idx dir root = 
+    let repDur = (prmFromJust (MD.getFirstParamsAndValue "REPEAT" dir), 
+                  prmFromJust (MD.getFirstParamsAndValue "DURATION" dir))  
+            where
+              prmFromJust = snd . Mb.fromJust
+    in
     case MD.getFirstParamsAndValue "TRIGGER" dir of
       Nothing -> error "VALARM doesn't contain TRIGGER field"
-      Just ([params], val) -> 
-          case params of 
-            [] -> SI.addValueToIndex (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
-            [param] -> case Map.lookup "VALUE" param of
-                        Just "DATE-TIME" -> SI.addValueToIndex (calcTimesAbs val repDur) (MD.getSpimUID parent) idx
-                        _ -> case Map.lookup "RELATED" param of
-                              Just "END" -> SI.addValueToIndex 
-                                             (calcTimesRelToEnd val repDur parent) (MD.getSpimUID parent) idx
-                              _ - SI.addValueToIndex 
-                                    (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
+      Just (params, val) -> 
+          let parent = Mb.fromJust (MD.getEnclosingMD root dir) in
+          if Map.null params then 
+              SI.addValueToIndex (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
+          else
+              case Map.lookup "VALUE" params of
+                Just "DATE-TIME" -> SI.addValueToIndex (calcTimesAbs val repDur) (MD.getSpimUID parent) idx
+                _ -> case Map.lookup "RELATED" params of
+                      Just "END" -> SI.addValueToIndex (calcTimesRelToEnd val repDur parent) 
+                                                    (MD.getSpimUID parent) idx
+                      _ -> SI.addValueToIndex (calcTimesRelToStart val repDur parent) (MD.getSpimUID parent) idx
 
 calcTimesAbs :: String -> (String, String) -> [String]
 calcTimesAbs val (repCount, duration) = 
     map utc2string (createTimeList (read repCount) (duration2DiffTime duration) (string2utc val))
 
+duration2DiffTime :: String -> Int
+duration2DiffTime val = error "FUTURE: implement"
+
 calcTimesRelToStart :: String -> (String, String) -> MD.MIMEDir -> [String]
-calcTimesRelToStart val (repCount, duration) parent = nothing
+calcTimesRelToStart val (repCount, duration) parent = 
+    let (params, value) = case MD.getFirstParamsAndValue "DTSTART" parent of
+                            Just v -> v
+                            Nothing -> error "VALARM parent doesn't contain DTSTART property"
+        -- RRULE field support have to be added here 
+    in
+    case Map.keys params of
+      [] -> error "FUTURE: date-time fields will be supported in future"
+      ["DATE"] -> error "FUTURE: date fields will be supported in future"
+      otherwise -> error ("FUTURE: full DTSTART parameter support will be implemented in future [" 
+                  ++ show (Map.keys params) ++ "]")
 
 calcTimesRelToEnd :: String -> (String, String) -> MD.MIMEDir -> [String]
-calcTimesRelToEnd val (repCount, duration) parent = nothing
+calcTimesRelToEnd val (repCount, duration) parent = 
+    error "FUTURE: alarms relative to end will be supported in future"
 
-createTimeList :: Int -> Int -> LocalTime -> [UTCTime] 
-createTimeList rep diff time -> [time : createTimeList (rep - 1) (incTime time diff)]
+createTimeList :: Int -> Int -> Clock.UTCTime -> [Clock.UTCTime] 
+createTimeList rep diff time = time : createTimeList (rep - 1) diff (incTime time diff)
 
-utc2string :: UTCTime -> String
+utc2string :: Clock.UTCTime -> String
 utc2string time = (TimeFormat.formatTime Locale.defaultTimeLocale MD.dateFormat time) ++ "Z"
 
-string2utc :: String -> UTCTime
+string2utc :: String -> Clock.UTCTime
 string2utc time = case TimeFormat.parseTime Locale.defaultTimeLocale MD.dateFormat time of
                     Just t -> t
                     Nothing -> error "Failed to parse time"
 
 
 -- FIXME: this one is copied from InjectEvent.hs. Should be externalized 
-incTime :: LocalTime -> Int -> LocalTime
-incTime base diff 
-    = let resFrac = ((Time.timeOfDayToDayFraction . Time.localTimeOfDay) base) 
-                    + ((toInteger diff) % secInDay) where secInDay = 24*60*60
-          d = Time.localDay base
-      in
-        if resFrac < 1 then
-            Time.LocalTime d (Time.dayFractionToTimeOfDay resFrac)
-        else
-            Time.LocalTime (Cal.addDays 1 d) (Time.dayFractionToTimeOfDay (resFrac - 1))
+incTime :: Clock.UTCTime -> Int -> Clock.UTCTime
+incTime base diff = Clock.addUTCTime (fromInteger (toInteger diff)) base
 
 -- toUTC and convertTZ2UTC are posibly unneeded
-toUTC ::  MD.MIMEDir -> (Parameters, PropValue) -> String
-toUTC  parent (tzParams, time) | "Z" `isSuffixOf` time = time -- UTC already
+toUTC ::  MD.MIMEDir -> (MD.Parameters, MD.PropValue) -> String
+toUTC  parent (tzParams, time) | "Z" `List.isSuffixOf` time = time -- UTC already
                                -- convert this one to UTC
                                | Map.member "TZID" tzParams = convertTZ2UTC parent (tzParams!"TZID") time
                                -- keep the local time (acc. to RFC-5545-3.3.5#1)
                                | otherwise = time 
      
-convertTZ2UTC :: MD.MIMEDir -> ParamValue -> PropValue -> String
+convertTZ2UTC :: MD.MIMEDir -> MD.ParamValue -> MD.PropValue -> String
 convertTZ2UTC parent tzName time = convertTime ((getTZDefinitions parent)!tzName) time 
     where
       convertTime tz time = nothing

@@ -17,7 +17,8 @@ import qualified MIMEDir as MD
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Maybe as Mb
-import qualified Date.Time.LocalTime as Time
+import qualified Data.Time.LocalTime as Time
+import qualified System.Cmd as Cmd
 
 type SpimIndex = MD.MIMEDir
 indexFieldProp = "FIELD"
@@ -29,10 +30,10 @@ saveIndexHook = Map.fromList [("ALARM", removeCurrentTZ)]
 putCurrentTZ :: SpimIndex -> IO SpimIndex
 putCurrentTZ index = do
   tz <- Time.getCurrentTimeZone
-  return Map.insert timeZoneId tz index
+  return (MD.MIMEDir (MD.kind index) (Map.insert timeZoneId (Left [(Map.empty, show tz)]) (MD.contents index)))
 
 removeCurrentTZ :: SpimIndex -> IO SpimIndex
-removeCurrentTZ index = do return Map.delete timeZoneId index
+removeCurrentTZ index = do return (MD.MIMEDir (MD.kind index) (Map.delete timeZoneId (MD.contents index)))
 
 getIndexLoadHook :: String -> (SpimIndex -> IO SpimIndex)
 getIndexLoadHook name = case Map.lookup name loadIndexHook of
@@ -49,10 +50,10 @@ loadIndex :: String -> IO SpimIndex
 loadIndex fld = do 
   content <- readFile ("indices/" ++ fld ++ ".idx") 
                 `catch` \e -> do return ("BEGIN:INDEX\r\nFIELD:" ++ fld ++ "\r\nEND:INDEX\r\n")
-  ((getIndexLoadHook fld) (Mb.fromJust $ SI.toSpimIndex content))
+  ((getIndexLoadHook fld) (Mb.fromJust $ toSpimIndex content))
 
 saveIndex :: SpimIndex -> IO ()
-saveIndex idx = do let idxName = (SI.getIndexField idx)
+saveIndex idx = do let idxName = (getIndexField idx)
                        fname = "indices/" ++ idxName ++ ".idx"
                    toWrite <- (getIndexSaveHook idxName) idx
                    writeFile fname (MD.mimeDirToString toWrite)

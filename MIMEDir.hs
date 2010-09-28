@@ -3,6 +3,7 @@ module MIMEDir where
 import qualified Data.Map as Map
 import qualified Data.Maybe as Mb
 import qualified Data.List as List
+import qualified Data.Either as Ethr
 
 type PropName = String
 type ParamName = String
@@ -28,6 +29,9 @@ getSpimUID = Mb.fromJust . getFirstValue spimUIDProp
 
 nestedKinds :: MIMEDir -> [String]
 nestedKinds (MIMEDir k c) = k:(contentsKinds c)
+
+getSubDirs :: MIMEDir -> [MIMEDir]
+getSubDirs dir = Ethr.rights (Map.elems (contents dir))
 
 contentsKinds :: MIMEDirContents -> [String]
 contentsKinds c = concat (map 
@@ -214,6 +218,9 @@ contentLineFromString :: String -> (ContentLine, String)
 contentLineFromString str = let cl = takeBeforeCRLF str in
                             (readContentLine cl, drop ((length cl) + 2) str)
 
+instance Eq MIMEDir where
+    dir1 == dir2 = (kind dir1 == kind dir2) && (contents dir1 == contents dir2)
+
 instance Eq ContentLine where
     cl1 == cl2 = (name cl1 == name cl2) && (parameters cl1 == parameters cl2) && (value cl1 == value cl2)
 
@@ -238,3 +245,18 @@ isMIMEDirValid checkFunc dir = and (map (checkCL checkFunc) cls) where
 
 checkCL :: (PropName -> PropValue -> Parameters -> Bool) -> ContentLine -> Bool
 checkCL checkFunc cl = checkFunc (name cl) (value cl) (parameters cl)
+
+
+getEnclosingMD :: MIMEDir -> MIMEDir -> Maybe MIMEDir
+getEnclosingMD root dir = Map.fold checkRes Nothing (contents root) where
+    checkRes treeLeaf res = case res of 
+                              Just _ -> res
+                              Nothing -> case treeLeaf of
+                                          Left _ -> Nothing
+                                          Right inner -> if contains inner dir then
+                                                            Just inner
+                                                        else
+                                                            getEnclosingMD inner dir
+contains :: MIMEDir -> MIMEDir -> Bool
+contains parent child = List.elem (Right child) (Map.elems (contents parent)) 
+
